@@ -4,8 +4,9 @@ name: Crafting Cost Optimization
 on:
   push:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 0' # Every Sunday at midnight UTC
+
+permissions:
+  contents: write
 
 jobs:
   optimize:
@@ -26,6 +27,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pandas
+
+      - name: Run Craft Optimizer
+        run: |
+          mkdir -p output
+          cd scripts
+          python craft_optimizer.py > ../output/optimizer_output.txt
 
       # Step 4: Run the optimizer script
       - name: Run Craft Optimizer
