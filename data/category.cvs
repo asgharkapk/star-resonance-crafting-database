@@ -1,0 +1,31 @@
+category,item,cost,notes
+currencies,L,Luno coin,used to buy items from Exchange stores and Trading Store
+currencies,F,Foucus (stamina),used to mine/craft items
+currencies,H,Homestead coin,used to buy items from Homstead store
+
+mineralogy,baru ore,20F,
+mineralogy,baru rich ore,20F,
+mineralogy,azte ore,20F,
+mineralogy,luna ore,20F,
+mineralogy,stokes rich ore,20F,
+
+gemology,raw ore of sapphire,20F,
+gemology,rich ore of sapphire,20F,
+gemology,raw ore of emrald,20F,
+
+Culinary,RawMeat -> Processed RawMeat,10F,
+
+Botany,meadow mushroom,20F,
+
+Artisanry,1xCharcoal -> 15xburning powder,20F,
+Artisanry,2xCharcoal -> 3xFast burning powder,20F,
+Artisanry,2xResin -> 15xGemWax,20F,
+Artisanry,28xpine tember -> 10xcharcoal,0F,
+Artisanry,28xpine tember -> 10xcharcoal -> 150xburning powder,200F,
+Artisanry,Charcoal(exchange),660L,
+Artisanry,Charcoal(Homestead),220H,
+Artisanry,Pine tember(exchange),174L,
+Artisanry,burning powder(tading),133L,
+Artisanry,Pine tember(Homestead),58H,
+
+Smelting,1xburning powder + 8xbaru ore -> 1xmystery metal,10F,
