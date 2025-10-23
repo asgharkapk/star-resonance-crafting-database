@@ -1,0 +1,11 @@
+inputs,output,F,L,H
+"1xCharcoal","15xBurning Powder",20,0,0
+"2xCharcoal","3xFast Burning Powder",20,0,0
+"2xResin","15xGemWax",20,0,0
+"28xPine Timber","10xCharcoal",0,0,0
+"28xPine Timber","10xCharcoal + 150xBurning Powder",200,0,0
+"Charcoal(exchange)","1xCharcoal",0,660,0
+"Charcoal(Homestead)","1xCharcoal",0,0,220
+"Pine Timber(exchange)","1xPine Timber",0,174,0
+"Pine Timber(Homestead)","1xPine Timber",0,0,58
+"Burning Powder(trading)","1xBurning Powder",0,133,0
