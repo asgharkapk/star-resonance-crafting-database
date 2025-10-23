@@ -1,40 +1,47 @@
 currencies:
-	L -> Luno coin -> used to buy items from Exchange stores and Trading Store
-	F -> Foucus(stamina) -> used to mine/craft items
-	H -> Homestead coin -> used to buy items from Homstead store
+	L 	-> Luno coin 		-> used to buy items from Exchange stores and Trading Store
+	F 	-> Foucus(stamina) 	-> used to mine/craft items
+	H 	-> Homestead coin 	-> used to buy items from Homstead store
+
 mineralogy:
-	item			mine/craft cost
-	baru ore		20F
-	baru rich ore		20F
-	azte ore		20F
-	luna ore		20F
-	stokes rich ore		20F
-gemology:
-	item			mine/craft cost
-	raw ore of sapphire	20F
-	rich ore of sapphire	20F
-	raw ore of emrald	20F
-Culinary:
 	item				mine/craft cost
+	baru ore			20F
+	baru rich ore		20F
+	azte ore			20F
+	luna ore			20F
+	stokes rich ore		20F
+
+gemology:
+	item					mine/craft cost
+	raw ore of sapphire		20F
+	rich ore of sapphire	20F
+	raw ore of emrald		20F
+
+Culinary:
+	item							mine/craft cost
 	RawMeat -> Processed RawMeat	10F
+
 Botany:
-	item			mine/craft cost
+	item				mine/craft cost
 	meadow mushroom		20F
+
 Artisanry:
-	item							mine/craft cost
-	1xCharcoal -> 15xburning powder				20F
-	2xCharcoal -> 3xFast burning powder			20F
-	2xResin -> 15xGemWax					20F
-	28xpine tember -> 10xcharcoal				0F
-	28xpine tember -> 10xcharcoal -> 150xburning powder	200F
-	Charcoal(exchange)					660L
-	Charcoal(Homestead)					220H
-	Pine tember(exchange)					174L
-	burning powder(tading)					133L
-	Pine tember(Homestead)					58H
+	item													mine/craft cost
+	1xCharcoal -> 15xburning powder							20F
+	2xCharcoal -> 3xFast burning powder						20F
+	2xResin -> 15xGemWax									20F
+	28xpine tember -> 10xcharcoal							0F
+	28xpine tember -> 10xcharcoal -> 150xburning powder		200F
+	Charcoal(exchange)										660L
+	Charcoal(Homestead)										220H
+	Pine tember(exchange)									174L
+	burning powder(tading)									133L
+	Pine tember(Homestead)									58H
+
 Smelting:
-	item							mine/craft cost
-	1xburning powder + 8xbaru ore -> 1xmystery metal	10F
+	item													mine/craft cost
+	1xburning powder + 8xbaru ore -> 1xmystery metal		10F
 
 
 	
+
