@@ -1,14 +1,18 @@
 import pandas as pd
 
 import os
-for f in ["../data/life_skills.csv", "../data/recipes.csv", "../data/currencies.csv"]:
-    if not os.path.exists(f):
-        print(f"⚠️ Missing required file: {f}")
+
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
+for f in ["life_skills.csv", "recipes.csv", "currencies.csv"]:
+    path = os.path.join(BASE_DIR, "data", f)
+    if not os.path.exists(path):
+        print(f"⚠️ Missing file: {path}")
 
 # --- Load data ---
-life_skills = pd.read_csv("../data/life_skills.csv")
-recipes = pd.read_csv("../data/recipes.csv")
-currencies = pd.read_csv("../data/currencies.csv")
+life_skills = pd.read_csv(os.path.join(BASE_DIR, "data", "life_skills.csv"))
+recipes = pd.read_csv(os.path.join(BASE_DIR, "data", "recipes.csv"))
+currencies = pd.read_csv(os.path.join(BASE_DIR, "data", "currencies.csv"))
 
 # --- Helper functions ---
 
