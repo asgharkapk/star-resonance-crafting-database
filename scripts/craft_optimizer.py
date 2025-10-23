@@ -11,21 +11,40 @@ def load_table(path):
     if not os.path.exists(path):
         print(f"❌ Missing file: {path}")
         return pd.DataFrame()
-    # detect delimiter
+
+    # Read a small sample to detect delimiter safely
     with open(path, "r", encoding="utf-8") as f:
-        sample = f.read(1024)
+        sample = f.read(2048)
+
+    if not sample.strip():
+        print(f"⚠️ Empty file: {path}")
+        return pd.DataFrame()
+
+    try:
         sniffer = csv.Sniffer()
-        delimiter = sniffer.sniff(sample).delimiter
+        dialect = sniffer.sniff(sample)
+        delimiter = dialect.delimiter
+    except csv.Error:
+        # Fallback if detection fails
+        delimiter = "|" if "|" in sample else ","
+
     df = pd.read_csv(path, sep=delimiter, engine="python").dropna(axis=1, how="all")
     df.columns = [c.strip() for c in df.columns]
+
+    # Replace deprecated applymap with map
     df = df.map(lambda x: str(x).strip() if isinstance(x, str) else x)
-    print(f"📂 Loaded {os.path.basename(path)} ({delimiter}) → {df.columns.tolist()}")
+
+    print(f"📂 Loaded {os.path.basename(path)} → detected '{delimiter}' → columns: {df.columns.tolist()}")
     return df
 
 # --- Load data ---
-life_skills = load_table(os.path.join(DATA_DIR, "life_skills.csv"))
-recipes = load_table(os.path.join(DATA_DIR, "recipes.csv"))
-currencies = load_table(os.path.join(DATA_DIR, "currencies.csv"))
+def safe_load(name):
+    path = os.path.join(DATA_DIR, f"{name}.csv")
+    return load_table(path) if os.path.exists(path) else pd.DataFrame()
+
+life_skills = safe_load("life_skills")
+recipes = safe_load("recipes")
+currencies = safe_load("currencies")
 
 # --- Helper functions ---
 def parse_cost(cost_str, currency_str=None):
