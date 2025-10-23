@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import csv
 
 # --- Paths ---
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -10,10 +11,15 @@ def load_table(path):
     if not os.path.exists(path):
         print(f"❌ Missing file: {path}")
         return pd.DataFrame()
-    df = pd.read_csv(path, sep="|", engine="python").dropna(axis=1, how="all")
+    # detect delimiter
+    with open(path, "r", encoding="utf-8") as f:
+        sample = f.read(1024)
+        sniffer = csv.Sniffer()
+        delimiter = sniffer.sniff(sample).delimiter
+    df = pd.read_csv(path, sep=delimiter, engine="python").dropna(axis=1, how="all")
     df.columns = [c.strip() for c in df.columns]
-    df = df.applymap(lambda x: str(x).strip() if isinstance(x, str) else x)
-    print(f"📂 Loaded {os.path.basename(path)} → columns: {df.columns.tolist()}")
+    df = df.map(lambda x: str(x).strip() if isinstance(x, str) else x)
+    print(f"📂 Loaded {os.path.basename(path)} ({delimiter}) → {df.columns.tolist()}")
     return df
 
 # --- Load data ---
