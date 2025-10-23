@@ -27,6 +27,8 @@ def parse_cost(cost_str):
 
 def calculate_total_cost(recipe_row):
     """Calculate total cost in currencies and Focus for a recipe chain."""
+    print("Recipes columns:", recipes.columns.tolist())
+    print(recipes.head())
     items = recipe_row['item'].split("→")
     total_costs = {}
     
