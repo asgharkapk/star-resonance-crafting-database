@@ -1,5 +1,10 @@
 import pandas as pd
 
+import os
+for f in ["../data/life_skills.csv", "../data/recipes.csv", "../data/currencies.csv"]:
+    if not os.path.exists(f):
+        print(f"⚠️ Missing required file: {f}")
+
 # --- Load data ---
 life_skills = pd.read_csv("../data/life_skills.csv")
 recipes = pd.read_csv("../data/recipes.csv")
@@ -48,10 +53,16 @@ def summarize_costs(df):
 
 min_costs, max_costs = summarize_costs(recipes)
 
+summary = []
+
 print("✅ Lowest-cost recipes:")
 for currency, (cost, item) in min_costs.items():
+    summary.append([currency, "Lowest", item, cost])
     print(f"{currency}: {item} → {cost}{currency}")
 
 print("\n💰 Highest-cost recipes:")
 for currency, (cost, item) in max_costs.items():
+    summary.append([currency, "Highest", item, cost])
     print(f"{currency}: {item} → {cost}{currency}")
+
+pd.DataFrame(summary, columns=["Currency", "Type", "Item", "Cost"]).to_csv("scripts/best_worst_recipes.csv", index=False)
