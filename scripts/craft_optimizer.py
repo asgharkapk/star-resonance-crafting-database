@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import csv
+import glob
 
 # --- Paths ---
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -12,7 +13,6 @@ def load_table(path):
         print(f"❌ Missing file: {path}")
         return pd.DataFrame()
 
-    # Read a small sample to detect delimiter safely
     with open(path, "r", encoding="utf-8") as f:
         sample = f.read(2048)
 
@@ -25,26 +25,24 @@ def load_table(path):
         dialect = sniffer.sniff(sample)
         delimiter = dialect.delimiter
     except csv.Error:
-        # Fallback if detection fails
         delimiter = "|" if "|" in sample else ","
 
     df = pd.read_csv(path, sep=delimiter, engine="python").dropna(axis=1, how="all")
     df.columns = [c.strip() for c in df.columns]
-
-    # Replace deprecated applymap with map
     df = df.map(lambda x: str(x).strip() if isinstance(x, str) else x)
 
-    print(f"📂 Loaded {os.path.basename(path)} → detected '{delimiter}' → columns: {df.columns.tolist()}")
+    print(f"📂 Loaded {os.path.basename(path)} → delimiter: '{delimiter}' → columns: {df.columns.tolist()}")
     return df
 
-# --- Load data ---
-def safe_load(name):
-    path = os.path.join(DATA_DIR, f"{name}.csv")
-    return load_table(path) if os.path.exists(path) else pd.DataFrame()
+# --- Load all CSVs dynamically as variables ---
+for path in glob.glob(os.path.join(DATA_DIR, "*.csv")):
+    name = os.path.splitext(os.path.basename(path))[0]
+    # Make a variable with the CSV name in globals()
+    globals()[name] = load_table(path)
 
-life_skills = safe_load("life_skills")
-recipes = safe_load("recipes")
-currencies = safe_load("currencies")
+# ✅ Now you can directly use:
+# life_skills, recipes, currencies, materials, etc.
+# without any manual assignment
 
 # --- Helper functions ---
 def parse_cost(cost_str, currency_str=None):
