@@ -1,7 +1,14 @@
 {
   "files": [
-    "recipes.csv",
+    "artisanry.csv",
     "artisanry1.csv",
-    "artisanry.csv"
+    "best_choices.cvs",
+    "category.cvs",
+    "crafting_routes.cvs",
+    "currencies.cvs",
+    "final_price.cvs",
+    "life_skills.cvs",
+    "recipes.csv",
+    "shop-items.cvs"
   ]
 }
