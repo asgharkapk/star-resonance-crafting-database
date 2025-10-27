@@ -3,23 +3,23 @@ currencies,,rewards,,L,Luno coin,used to buy items from Exchange stores and Trad
 currencies,,daily,,F,Foucus (stamina),used to mine/craft items
 currencies,,homestead,,H,Homestead coin,used to buy items from Homstead store
 
-mineralogy,,mining,,baru ore,20F
-mineralogy,,mining,,baru rich ore,20F
-mineralogy,,mining,,azte ore,20F
-mineralogy,,mining,,luna ore,20F
-mineralogy,,mining,,stokes rich ore,20F
+mineralogy,,mining,,baru ore,20F,
+mineralogy,,mining,,baru rich ore,20F,
+mineralogy,,mining,,azte ore,20F,
+mineralogy,,mining,,luna ore,20F,
+mineralogy,,mining,,stokes rich ore,20F,
 
-gemology,,mining,,raw ore of sapphire,20F
-gemology,,mining,,rich ore of sapphire,20F
-gemology,,mining,,raw ore of emrald,20F
+gemology,,mining,,raw ore of sapphire,20F,
+gemology,,mining,,rich ore of sapphire,20F,
+gemology,,mining,,raw ore of emrald,20F,
 
-Culinary,,RawMeat,, Processed RawMeat,10F
+Culinary,,RawMeat,, Processed RawMeat,10F,
 
-Botany,,meadow mushroom,,,20F
+Botany,,meadow mushroom,,,20F,
 
-Artisanry,1x,Charcoal, 15x,burning powder,20F
-Artisanry,2x,Charcoal, 3x,Fast burning powder,20F
-Artisanry,2x,Resin, 15x,GemWax,20F
+Artisanry,1x,Charcoal, 15x,burning powder,20F,
+Artisanry,2x,Charcoal, 3x,Fast burning powder,20F,
+Artisanry,2x,Resin, 15x,GemWax,20F,
 Artisanry,28x,pine tember, 10x,charcoal,0F
 Artisanry,10x,charcoal, 150x,burning powder,200F
 Artisanry,,Charcoal(exchange),,,660L
