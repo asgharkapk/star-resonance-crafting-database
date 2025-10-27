@@ -153,6 +153,21 @@
       </table>
     </section>
 
+    <section id="artisanry">
+      <h2>Artisanry Processes</h2>
+      <table id="artisanry-table">
+        <thead>
+          <tr>
+            <th>Action</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Cost</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
     <section id="recipes">
       <h2>Recipes</h2>
       <table id="recipes-table">
@@ -198,41 +213,50 @@
 <script>
 async function loadCSV(path) {
   const response = await fetch(path);
-  const data = await response.text();
-
-  // Split lines and extract headers
-  const lines = data.trim().split("\n");
+  const text = await response.text();
+  const lines = text.trim().split("\n");
   const headers = lines[0].split(",");
 
-  // Parse CSV rows
-  const rows = lines.slice(1).map(line => {
-    const values = line.split(",");
+  return lines.slice(1).map(line => {
+    const values = [];
+    let insideQuotes = false, current = "";
+
+    for (let c of line) {
+      if (c === '"') {
+        insideQuotes = !insideQuotes;
+      } else if (c === ',' && !insideQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += c;
+      }
+    }
+    values.push(current.trim());
+
     const row = {};
-    headers.forEach((h, i) => row[h.trim()] = values[i].trim());
+    headers.forEach((h, i) => row[h.trim()] = values[i] ? values[i].trim() : "");
     return row;
   });
-
-  return rows;
 }
 
-async function displayRecipes() {
-  const tableBody = document.querySelector("#recipes-table tbody");
-  const rows = await loadCSV("data/recipes.csv");
+async function displayTable(csvPath, tableId) {
+  const tableBody = document.querySelector(`#${tableId} tbody`);
+  const rows = await loadCSV(csvPath);
 
-  rows.forEach(r => {
+  rows.forEach(row => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${r.source}</td>
-      <td>${r.item}</td>
-      <td>${r.cost}</td>
-      <td>${r.currency}</td>
-    `;
+    tr.innerHTML = Object.values(row)
+      .map(v => `<td>${v}</td>`)
+      .join("");
     tableBody.appendChild(tr);
   });
 }
 
-// Run it after the page loads
-window.addEventListener("DOMContentLoaded", displayRecipes);
+// Load both tables on page load
+window.addEventListener("DOMContentLoaded", () => {
+  displayTable("data/recipes.csv", "recipes-table");
+  displayTable("data/artisanry.csv", "artisanry-table");
+});
 </script>
 
   
