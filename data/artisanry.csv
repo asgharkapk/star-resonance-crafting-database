@@ -1,0 +1,7 @@
+action,from,to,cost
+mine,raw ore of emerald,starlight emrald lv.1,20F
+craft,starlight emrald lv.1,emrald,20F
+craft,"starlight emrald lv.2+gem wax+emrald",emrald - agility 3,20F
+mine,rich ore of emrald,starlight emrald lv.2,20F
+craft,resin,gem wax,20F
+farm,"branch cluster+wood branch+thin twig",resin,20F
