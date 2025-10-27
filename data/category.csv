@@ -28,4 +28,6 @@ Artisanry,,Pine tember(exchange),,,174L,
 Artisanry,,burning powder(tading),,,133L,
 Artisanry,,Pine tember(Homestead),,,58H,
 
-Smelting,1x,burning powder,8x,baru ore,1x,mystery metal,10F
+Smelting,1x,burning powder,1x,mystery metal,10F,
+Smelting,8x,baru ore,1x,mystery metal,10F,
+Smelting,1x,burning powder + 8x baru ore,1x,mystery metal,10F,
