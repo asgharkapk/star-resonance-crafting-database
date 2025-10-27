@@ -105,6 +105,46 @@
     }
   </style>
 </head>
+  <div id="item-modal" class="modal hidden">
+  <div class="modal-content">
+    <span id="modal-close">&times;</span>
+    <h2 id="modal-title"></h2>
+    <div id="modal-details"></div>
+  </div>
+</div>
+
+<style>
+.modal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal.hidden { display: none; }
+.modal-content {
+  background: #101439;
+  color: #f4f4f4;
+  padding: 20px 30px;
+  border-radius: 10px;
+  max-width: 600px;
+  width: 90%;
+  box-shadow: 0 0 20px #74b9ff;
+}
+#modal-close {
+  float: right;
+  font-size: 24px;
+  cursor: pointer;
+  color: #74b9ff;
+}
+.item-link {
+  color: #74b9ff;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.item-link:hover { color: #fff; }
+</style>
+
 <body>
   <header>
     <h1>Star Resonance Crafting Guide</h1>
@@ -209,6 +249,8 @@
     </section>
   </main>
 
+
+  
   
 <script>
 // === Auto CSV Loader for Star Resonance Crafting Guide ===
@@ -297,6 +339,64 @@ async function loadAllCSVs() {
 }
 
 window.addEventListener("DOMContentLoaded", loadAllCSVs);
+
+
+document.addEventListener("click", async e => {
+  if (!e.target.classList.contains("item-link")) return;
+
+  const item = e.target.dataset.item.toLowerCase();
+  const modal = document.getElementById("item-modal");
+  const title = document.getElementById("modal-title");
+  const details = document.getElementById("modal-details");
+
+  title.textContent = e.target.dataset.item;
+  details.innerHTML = "<p>Loading details...</p>";
+  modal.classList.remove("hidden");
+
+  // Load CSVs
+  const [recipes, artisanry] = await Promise.all([
+    loadCSV("data/recipes.csv"),
+    loadCSV("data/artisanry.csv")
+  ]);
+
+  // Find all rows related to the clicked item
+  const sources = artisanry.filter(r => r.to?.toLowerCase() === item);
+  const usedIn = artisanry.filter(r => r.from?.toLowerCase().includes(item));
+  const shopData = recipes.filter(r => r.item?.toLowerCase() === item);
+
+  // Build info blocks
+  let html = "";
+
+  if (sources.length)
+    html += `<h3>🔨 Crafted From:</h3><ul>` + sources.map(s =>
+      `<li>${s.action} → ${s.from} (${s.cost})</li>`
+    ).join("") + `</ul>`;
+
+  if (usedIn.length)
+    html += `<h3>🧩 Used In:</h3><ul>` + usedIn.map(u =>
+      `<li>${u.action} → ${u.to} (${u.cost})</li>`
+    ).join("") + `</ul>`;
+
+  if (shopData.length)
+    html += `<h3>🏪 Shop Prices:</h3><ul>` + shopData.map(s =>
+      `<li>${s.source}: ${s.cost}${s.currency}</li>`
+    ).join("") + `</ul>`;
+
+  if (!html) html = "<p>No detailed data found for this item yet.</p>";
+
+  // Add efficiency logic (fastest/cheapest)
+  const cheapest = shopData.sort((a,b) => parseFloat(a.cost) - parseFloat(b.cost))[0];
+  if (cheapest)
+    html += `<h3>💡 Best Option:</h3><p>Buy from <strong>${cheapest.source}</strong> for ${cheapest.cost}${cheapest.currency} (cheapest known).</p>`;
+
+  details.innerHTML = html;
+});
+
+document.getElementById("modal-close").addEventListener("click", () => {
+  document.getElementById("item-modal").classList.add("hidden");
+});
+
+  
 </script>
 
 
