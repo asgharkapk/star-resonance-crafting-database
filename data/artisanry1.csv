@@ -3,7 +3,8 @@ craft,1x,Charcoal,15x,Burning Powder,20F
 craft,2x,Charcoal,3x,Fast Burning Powder,20F
 craft,2x,Resin,15x,GemWax,20F
 craft,28x,Pine Timber,10x,Charcoal,0F
-craft,28x,Pine Timber,10x,Charcoal + 150xBurning Powder,200F
+craft,28x,Pine Timber,10x,Charcoal,200F
+craft,28x,Pine Timber,150x,Burning Powder,200F
 buy,,Exchange,1x,Charcoal,600L
 buy,,Homestead,1x,Charcoal,220H
 buy,,Exchange,1x,Pine Timber,174L
