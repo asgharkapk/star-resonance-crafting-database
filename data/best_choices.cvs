@@ -1,2 +1,3 @@
-L Coin path: Craft from Pine Timber -> Charcoal -> Burning Powder -> ≈ 32.48 L per Powder
-H Coin path: Craft from Pine Timber -> Charcoal -> Burning Powder -> ≈ 10.83 H per Powder
+final item,craft path
+Burning Powder,L Coin path: Craft from Pine Timber -> Charcoal -> Burning Powder -> ≈ 32.48 L per Powder
+Burning Powder,H Coin path: Craft from Pine Timber -> Charcoal -> Burning Powder -> ≈ 10.83 H per Powder
