@@ -1,11 +1,11 @@
 action,from,to,cost_F,cost_L,cost_H
-action,"1x Charcoal","15x Burning Powder",20F,N/A,N/A
-action,"2x Charcoal","3x Fast Burning Powder",20F,N/A,N/A
-action,"2x Resin","15x GemWax",20F,N/A,N/A
-action,"28x Pine Timber","10x Charcoal",N/AF,N/A,N/A
-action,"28x Pine Timber","10x Charcoal + 150xBurning Powder",200F,N/A,N/A
-action,"Charcoal(exchange)","1x Charcoal",N/AF,660L,N/A
-action,"Charcoal(Homestead)","1x Charcoal",N/AF,N/A,220H
-action,"Pine Timber(exchange)","1x Pine Timber",N/AF,174L,N/A
-action,"Pine Timber(Homestead)","1x Pine Timber",N/AF,N/A,58H
-action,"Burning Powder(trading)","1x Burning Powder",N/A,133L,N/A
+craft,"1x Charcoal","15x Burning Powder",20F,N/A,N/A
+craft,"2x Charcoal","3x Fast Burning Powder",20F,N/A,N/A
+craft,"2x Resin","15x GemWax",20F,N/A,N/A
+craft,"28x Pine Timber","10x Charcoal",N/AF,N/A,N/A
+craft,"28x Pine Timber","10x Charcoal + 150xBurning Powder",200F,N/A,N/A
+craft,"Charcoal(exchange)","1x Charcoal",N/AF,660L,N/A
+craft,"Charcoal(Homestead)","1x Charcoal",N/AF,N/A,220H
+craft,"Pine Timber(exchange)","1x Pine Timber",N/AF,174L,N/A
+craft,"Pine Timber(Homestead)","1x Pine Timber",N/AF,N/A,58H
+craft,"Burning Powder(trading)","1x Burning Powder",N/A,133L,N/A
