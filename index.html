@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Star Resonance Crafting Guide</title>
+  <style>
+    /* ===== Global Style ===== */
+    body {
+      font-family: "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at top, #0b0f2a, #05071a);
+      color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background: linear-gradient(90deg, #2a2f5a, #0b0f2a);
+      padding: 20px 30px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2em;
+      color: #74b9ff;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    nav {
+      background: #101439;
+      padding: 10px 0;
+      text-align: center;
+    }
+
+    nav a {
+      color: #a0c4ff;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: 500;
+      transition: 0.2s;
+    }
+
+    nav a:hover {
+      color: #fff;
+      text-shadow: 0 0 10px #74b9ff;
+    }
+
+    main {
+      padding: 30px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    section {
+      margin-bottom: 50px;
+    }
+
+    h2 {
+      border-left: 5px solid #74b9ff;
+      padding-left: 10px;
+      color: #a0c4ff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #2a2f5a;
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #1b2045;
+    }
+
+    tr:nth-child(even) {
+      background-color: #0f132f;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: #aaa;
+      font-size: 0.9em;
+      border-top: 1px solid #2a2f5a;
+      background-color: #05071a;
+    }
+
+    .note {
+      color: #ccc;
+      font-style: italic;
+      font-size: 0.9em;
+    }
+
+    .highlight {
+      color: #74b9ff;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Star Resonance Crafting Guide</h1>
+  </header>
+
+  <nav>
+    <a href="#overview">Overview</a>
+    <a href="#materials">Materials</a>
+    <a href="#recipes">Recipes</a>
+    <a href="#cost">Cost Efficiency</a>
+  </nav>
+
+  <main>
+    <section id="overview">
+      <h2>Overview</h2>
+      <p>
+        Welcome to the <span class="highlight">Star Resonance Crafting Guide</span> — your go-to reference for crafting
+        materials, artisanry combinations, and cost optimizations.
+      </p>
+      <p class="note">
+        Tip: Future versions will include interactive tables and CSV data loading.
+      </p>
+    </section>
+
+    <section id="materials">
+      <h2>Crafting Materials</h2>
+      <table>
+        <tr>
+          <th>Material</th>
+          <th>Source</th>
+          <th>Cost</th>
+          <th>Notes</th>
+        </tr>
+        <tr>
+          <td>Charcoal</td>
+          <td>Pine Timber x28</td>
+          <td>0F</td>
+          <td>Used to craft Burning Powder</td>
+        </tr>
+        <tr>
+          <td>Burning Powder</td>
+          <td>Charcoal x1</td>
+          <td>20F</td>
+          <td>Produces 15 units</td>
+        </tr>
+      </table>
+    </section>
+
+    <section id="artisanry">
+      <h2>Artisanry Processes</h2>
+      <table id="artisanry-table">
+        <thead>
+          <tr>
+            <th>Action</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Cost</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="recipes">
+      <h2>Recipes</h2>
+      <table id="recipes-table">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Item</th>
+            <th>Cost</th>
+            <th>Currency</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="cost">
+      <h2>Cost Efficiency</h2>
+      <p>
+        Compare <span class="highlight">mine</span> vs <span class="highlight">craft</span> costs to determine the most efficient
+        crafting path.
+      </p>
+      <table>
+        <tr>
+          <th>Item</th>
+          <th>Mine/Craft Cost</th>
+          <th>Notes</th>
+        </tr>
+        <tr>
+          <td>Fast Burning Powder</td>
+          <td>20F</td>
+          <td>Uses 2x Charcoal</td>
+        </tr>
+        <tr>
+          <td>Gem Wax</td>
+          <td>20F</td>
+          <td>Uses 2x Resin</td>
+        </tr>
+      </table>
+    </section>
+  </main>
+
+  
+<script>
+// === Auto CSV Loader for Star Resonance Crafting Guide ===
+
+const DATA_DIR = "data";
+
+// Helper: load CSV text and parse into an array of objects
+async function loadCSV(path) {
+  const response = await fetch(path);
+  const text = await response.text();
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(",");
+
+  return lines.slice(1).map(line => {
+    const values = [];
+    let current = "", inQuotes = false;
+
+    for (let c of line) {
+      if (c === '"') inQuotes = !inQuotes;
+      else if (c === ',' && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else current += c;
+    }
+    values.push(current.trim());
+
+    const row = {};
+    headers.forEach((h, i) => row[h.trim()] = values[i] ? values[i].trim() : "");
+    return row;
+  });
+}
+
+// Helper: create a section + table for one CSV file
+function createTableSection(filename, headers, rows) {
+  const section = document.createElement("section");
+  const name = filename.replace(".csv", "").replace(/_/g, " ");
+  const title = name.charAt(0).toUpperCase() + name.slice(1);
+
+  section.innerHTML = `
+    <h2>${title}</h2>
+    <table>
+      <thead>
+        <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
+      </thead>
+      <tbody>
+        ${rows.map(r =>
+          `<tr>${headers.map(h => `<td>${r[h] || ""}</td>`).join("")}</tr>`
+        ).join("")}
+      </tbody>
+    </table>
+  `;
+
+  document.querySelector("main").appendChild(section);
+}
+
+// Main: automatically find and load all CSVs in /data/
+async function loadAllCSVs() {
+  try {
+    // 1️⃣ Fetch directory listing (only works from server, not file://)
+    const resp = await fetch(DATA_DIR + "/");
+    const text = await resp.text();
+
+    // 2️⃣ Extract .csv filenames (works with Python or VSCode live server)
+    const csvFiles = [...text.matchAll(/href="([^"]+\.csv)"/g)]
+      .map(m => m[1])
+      .filter(name => !name.startsWith("?") && !name.includes("Parent"));
+
+    if (csvFiles.length === 0) {
+      document.querySelector("main").innerHTML +=
+        "<p>No CSV files found in /data/ folder.</p>";
+      return;
+    }
+
+    // 3️⃣ Load each CSV and display it
+    for (const file of csvFiles) {
+      const rows = await loadCSV(`${DATA_DIR}/${file}`);
+      if (rows.length === 0) continue;
+      const headers = Object.keys(rows[0]);
+      createTableSection(file, headers, rows);
+    }
+  } catch (err) {
+    console.error("Auto-load failed. Some servers block directory listing.", err);
+    document.querySelector("main").innerHTML +=
+      `<p class="note">⚠️ Auto-loading disabled on this server. Add CSVs manually or list them in script.</p>`;
+  }
+}
+
+window.addEventListener("DOMContentLoaded", loadAllCSVs);
+</script>
+
+
+  
+  <footer>
+    <p>© 2025 Star Resonance Fan Project — Data gathered by community contributors.</p>
+  </footer>
+</body>
+</html>
