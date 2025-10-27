@@ -187,6 +187,48 @@
     </section>
   </main>
 
+  
+<script>
+async function loadCSV(path) {
+  const response = await fetch(path);
+  const data = await response.text();
+
+  // Split lines and extract headers
+  const lines = data.trim().split("\n");
+  const headers = lines[0].split(",");
+
+  // Parse CSV rows
+  const rows = lines.slice(1).map(line => {
+    const values = line.split(",");
+    const row = {};
+    headers.forEach((h, i) => row[h.trim()] = values[i].trim());
+    return row;
+  });
+
+  return rows;
+}
+
+async function displayRecipes() {
+  const tableBody = document.querySelector("#recipes-table tbody");
+  const rows = await loadCSV("data/recipes.csv");
+
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.source}</td>
+      <td>${r.item}</td>
+      <td>${r.cost}</td>
+      <td>${r.currency}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+
+// Run it after the page loads
+window.addEventListener("DOMContentLoaded", displayRecipes);
+</script>
+
+  
   <footer>
     <p>© 2025 Star Resonance Fan Project — Data gathered by community contributors.</p>
   </footer>
