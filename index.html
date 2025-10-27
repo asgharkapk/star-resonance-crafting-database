@@ -162,7 +162,7 @@ document.addEventListener("click", async e=>{
     });
 
     let html="";
-    if(sources.length) html+=`<h3>🔨 Crafted From:</h3><ul>`+sources.map(s=>`<li>${s.action} → ${s.from} (${s.cost})</li>`).join("")+"</ul>";
+    if(sources.length) html+=`<h3>🔨 Made From:</h3><ul>`+sources.map(s=>`<li>${s.action} → ${s.from} (${s.cost})</li>`).join("")+"</ul>";
     if(usedIn.length) html+=`<h3>🧩 Used In:</h3><ul>`+usedIn.map(u=>`<li>${u.action} → ${u.to} (${u.cost})</li>`).join("")+"</ul>";
     if(shopData.length) html+=`<h3>🏪 Shop Prices:</h3><ul>`+shopData.map(s=>`<li>${s.source}: ${s.cost}${s.currency||""}</li>`).join("")+"</ul>";
 
