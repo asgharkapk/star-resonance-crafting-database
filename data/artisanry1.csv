@@ -1,11 +1,11 @@
-inputs,output,F,L,H
-"1xCharcoal","15xBurning Powder",20,0,0
-"2xCharcoal","3xFast Burning Powder",20,0,0
-"2xResin","15xGemWax",20,0,0
-"28xPine Timber","10xCharcoal",0,0,0
-"28xPine Timber","10xCharcoal + 150xBurning Powder",200,0,0
-"Charcoal(exchange)","1xCharcoal",0,660,0
-"Charcoal(Homestead)","1xCharcoal",0,0,220
-"Pine Timber(exchange)","1xPine Timber",0,174,0
-"Pine Timber(Homestead)","1xPine Timber",0,0,58
-"Burning Powder(trading)","1xBurning Powder",0,133,0
+from,to,Focus cost,Luna coin cost,Homestead coin cost
+"1x Charcoal","15x Burning Powder",20F,N/A,N/A
+"2x Charcoal","3x Fast Burning Powder",20F,N/A,N/A
+"2x Resin","15x GemWax",20F,N/A,N/A
+"28x Pine Timber","10x Charcoal",N/AF,N/A,N/A
+"28x Pine Timber","10x Charcoal + 150xBurning Powder",200F,N/A,N/A
+"Charcoal(exchange)","1x Charcoal",N/AF,660L,N/A
+"Charcoal(Homestead)","1x Charcoal",N/AF,N/A,220H
+"Pine Timber(exchange)","1x Pine Timber",N/AF,174L,N/A
+"Pine Timber(Homestead)","1x Pine Timber",N/AF,N/A,58H
+"Burning Powder(trading)","1x Burning Powder",N/A,133L,N/A
