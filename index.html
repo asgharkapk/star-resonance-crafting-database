@@ -1,111 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Star Resonance Crafting Guide</title>
-  <style>
-    /* ===== Global Style ===== */
-    body {
-      font-family: "Segoe UI", Roboto, sans-serif;
-      background: radial-gradient(circle at top, #0b0f2a, #05071a);
-      color: #f4f4f4;
-      margin: 0;
-      padding: 0;
-    }
-
-    header {
-      background: linear-gradient(90deg, #2a2f5a, #0b0f2a);
-      padding: 20px 30px;
-      text-align: center;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 2em;
-      color: #74b9ff;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-    }
-
-    nav {
-      background: #101439;
-      padding: 10px 0;
-      text-align: center;
-    }
-
-    nav a {
-      color: #a0c4ff;
-      text-decoration: none;
-      margin: 0 15px;
-      font-weight: 500;
-      transition: 0.2s;
-    }
-
-    nav a:hover {
-      color: #fff;
-      text-shadow: 0 0 10px #74b9ff;
-    }
-
-    main {
-      padding: 30px;
-      max-width: 900px;
-      margin: auto;
-    }
-
-    section {
-      margin-bottom: 50px;
-    }
-
-    h2 {
-      border-left: 5px solid #74b9ff;
-      padding-left: 10px;
-      color: #a0c4ff;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-
-    th, td {
-      border: 1px solid #2a2f5a;
-      padding: 10px;
-      text-align: left;
-    }
-
-    th {
-      background-color: #1b2045;
-    }
-
-    tr:nth-child(even) {
-      background-color: #0f132f;
-    }
-
-    footer {
-      text-align: center;
-      padding: 20px;
-      color: #aaa;
-      font-size: 0.9em;
-      border-top: 1px solid #2a2f5a;
-      background-color: #05071a;
-    }
-
-    .note {
-      color: #ccc;
-      font-style: italic;
-      font-size: 0.9em;
-    }
-
-    .highlight {
-      color: #74b9ff;
-      font-weight: bold;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Resonance Crafting Guide</title>
+<style>
+/* ===== Global Style ===== */
+body { font-family: "Segoe UI", Roboto, sans-serif; background: radial-gradient(circle at top, #0b0f2a, #05071a); color: #f4f4f4; margin:0; padding:0; }
+header { background: linear-gradient(90deg, #2a2f5a, #0b0f2a); padding: 20px 30px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3);}
+header h1 { margin:0; font-size:2em; color:#74b9ff; text-transform: uppercase; letter-spacing:2px;}
+nav { background:#101439; padding:10px 0; text-align:center;}
+nav a { color:#a0c4ff; text-decoration:none; margin:0 15px; font-weight:500; transition:0.2s;}
+nav a:hover { color:#fff; text-shadow:0 0 10px #74b9ff;}
+main { padding:30px; max-width:900px; margin:auto;}
+section { margin-bottom:50px;}
+h2 { border-left:5px solid #74b9ff; padding-left:10px; color:#a0c4ff;}
+table { width:100%; border-collapse:collapse; margin-top:10px;}
+th,td { border:1px solid #2a2f5a; padding:10px; text-align:left;}
+th { background-color:#1b2045; }
+tr:nth-child(even){background-color:#0f132f;}
+footer { text-align:center; padding:20px; color:#aaa; font-size:0.9em; border-top:1px solid #2a2f5a; background-color:#05071a;}
+.note { color:#ccc; font-style:italic; font-size:0.9em;}
+.highlight { color:#74b9ff; font-weight:bold; }
+.item-link { color:#74b9ff; cursor:pointer; text-decoration:underline;}
+.item-link:hover { color:#fff;}
+/* Modal */
+.modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center;}
+.modal.hidden { display:none;}
+.modal-content { background:#101439; color:#f4f4f4; padding:20px 30px; border-radius:10px; max-width:600px; width:90%; box-shadow:0 0 20px #74b9ff;}
+#modal-close { float:right; font-size:24px; cursor:pointer; color:#74b9ff;}
+</style>
 </head>
-  <div id="item-modal" class="modal hidden">
+<body>
+<header>
+<h1>Star Resonance Crafting Guide</h1>
+</header>
+
+<nav>
+<a href="#overview">Overview</a>
+<a href="#materials">Materials</a>
+<a href="#recipes">Recipes</a>
+<a href="#cost">Cost Efficiency</a>
+</nav>
+
+<main>
+<section id="overview">
+<h2>Overview</h2>
+<p>Welcome to the <span class="highlight">Star Resonance Crafting Guide</span> — your reference for crafting materials, artisanry combinations, and cost optimization.</p>
+</section>
+
+<section id="csv-output">
+<!-- All CSV tables will load here -->
+</section>
+</main>
+
+<div id="item-modal" class="modal hidden">
   <div class="modal-content">
     <span id="modal-close">&times;</span>
     <h2 id="modal-title"></h2>
@@ -113,302 +62,108 @@
   </div>
 </div>
 
-<style>
-.modal {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex; align-items: center; justify-content: center;
-}
-.modal.hidden { display: none; }
-.modal-content {
-  background: #101439;
-  color: #f4f4f4;
-  padding: 20px 30px;
-  border-radius: 10px;
-  max-width: 600px;
-  width: 90%;
-  box-shadow: 0 0 20px #74b9ff;
-}
-#modal-close {
-  float: right;
-  font-size: 24px;
-  cursor: pointer;
-  color: #74b9ff;
-}
-.item-link {
-  color: #74b9ff;
-  cursor: pointer;
-  text-decoration: underline;
-}
-.item-link:hover { color: #fff; }
-</style>
+<footer>
+<p>© 2025 Star Resonance Fan Project — Data gathered by community contributors.</p>
+</footer>
 
-<body>
-  <header>
-    <h1>Star Resonance Crafting Guide</h1>
-  </header>
-
-  <nav>
-    <a href="#overview">Overview</a>
-    <a href="#materials">Materials</a>
-    <a href="#recipes">Recipes</a>
-    <a href="#cost">Cost Efficiency</a>
-  </nav>
-
-  <main>
-    <section id="overview">
-      <h2>Overview</h2>
-      <p>
-        Welcome to the <span class="highlight">Star Resonance Crafting Guide</span> — your go-to reference for crafting
-        materials, artisanry combinations, and cost optimizations.
-      </p>
-      <p class="note">
-        Tip: Future versions will include interactive tables and CSV data loading.
-      </p>
-    </section>
-
-    <section id="materials">
-      <h2>Crafting Materials</h2>
-      <table>
-        <tr>
-          <th>Material</th>
-          <th>Source</th>
-          <th>Cost</th>
-          <th>Notes</th>
-        </tr>
-        <tr>
-          <td>Charcoal</td>
-          <td>Pine Timber x28</td>
-          <td>0F</td>
-          <td>Used to craft Burning Powder</td>
-        </tr>
-        <tr>
-          <td>Burning Powder</td>
-          <td>Charcoal x1</td>
-          <td>20F</td>
-          <td>Produces 15 units</td>
-        </tr>
-      </table>
-    </section>
-
-    <section id="artisanry">
-      <h2>Artisanry Processes</h2>
-      <table id="artisanry-table">
-        <thead>
-          <tr>
-            <th>Action</th>
-            <th>From</th>
-            <th>To</th>
-            <th>Cost</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-
-    <section id="recipes">
-      <h2>Recipes</h2>
-      <table id="recipes-table">
-        <thead>
-          <tr>
-            <th>Source</th>
-            <th>Item</th>
-            <th>Cost</th>
-            <th>Currency</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-
-    <section id="cost">
-      <h2>Cost Efficiency</h2>
-      <p>
-        Compare <span class="highlight">mine</span> vs <span class="highlight">craft</span> costs to determine the most efficient
-        crafting path.
-      </p>
-      <table>
-        <tr>
-          <th>Item</th>
-          <th>Mine/Craft Cost</th>
-          <th>Notes</th>
-        </tr>
-        <tr>
-          <td>Fast Burning Powder</td>
-          <td>20F</td>
-          <td>Uses 2x Charcoal</td>
-        </tr>
-        <tr>
-          <td>Gem Wax</td>
-          <td>20F</td>
-          <td>Uses 2x Resin</td>
-        </tr>
-      </table>
-    </section>
-  </main>
-
-
-  
-  
 <script>
-// === Auto CSV Loader for Star Resonance Crafting Guide ===
-
-const DATA_DIR = "data";
-
-// Helper: load CSV text and parse into an array of objects
+// --- CSV Loader ---
 async function loadCSV(path) {
-  const response = await fetch(path);
-  const text = await response.text();
-  const lines = text.trim().split("\n");
-  const headers = lines[0].split(",");
-
-  return lines.slice(1).map(line => {
-    const values = [];
-    let current = "", inQuotes = false;
-
-    for (let c of line) {
-      if (c === '"') inQuotes = !inQuotes;
-      else if (c === ',' && !inQuotes) {
-        values.push(current.trim());
-        current = "";
-      } else current += c;
-    }
-    values.push(current.trim());
-
-    const row = {};
-    headers.forEach((h, i) => row[h.trim()] = values[i] ? values[i].trim() : "");
-    return row;
-  });
-}
-
-// Helper: create a section + table for one CSV file
-function createTableSection(filename, headers, rows) {
-  const section = document.createElement("section");
-  const name = filename.replace(".csv", "").replace(/_/g, " ");
-  const title = name.charAt(0).toUpperCase() + name.slice(1);
-
-  section.innerHTML = `
-    <h2>${title}</h2>
-    <table>
-      <thead>
-        <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
-      </thead>
-      <tbody>
-        ${rows.map(r =>
-          `<tr>${headers.map(h => `<td>${r[h] || ""}</td>`).join("")}</tr>`
-        ).join("")}
-      </tbody>
-    </table>
-  `;
-
-  document.querySelector("main").appendChild(section);
-}
-
-// Main: automatically find and load all CSVs in /data/
-async function loadAllCSVs() {
-  const DATA_DIR = "./data";
-
-  // Fetch file list manually from index.json
-  const resp = await fetch(`${DATA_DIR}/index.json`);
-  if (!resp.ok) {
-    document.getElementById("csv-output").innerHTML = `<p style="color:red;">❌ Error: Could not load data/index.json</p>`;
-    return;
-  }
-
-  const { files } = await resp.json();
-  if (!files || files.length === 0) {
-    document.getElementById("csv-output").innerHTML = `<p>No CSV files listed in index.json.</p>`;
-    return;
-  }
-
-  const container = document.getElementById("csv-output");
-  container.innerHTML = "";
-
-  for (const file of files) {
-    const res = await fetch(`${DATA_DIR}/${file}`);
-    if (!res.ok) continue;
+    const res = await fetch(path);
     const text = await res.text();
-    const rows = text.trim().split("\n").map(r => r.split(","));
-    const table = document.createElement("table");
-    table.innerHTML = `
-      <caption>${file}</caption>
-      ${rows.map((row, i) =>
-        `<tr>${row.map(cell =>
-          `<${i === 0 ? "th" : "td"}>${cell.trim()}</${i === 0 ? "th" : "td"}>`
-        ).join("")}</tr>`
-      ).join("")}
-    `;
-    container.appendChild(table);
-  }
+    const lines = text.trim().split("\n");
+    const headers = lines[0].split(",").map(h => h.trim());
+    return lines.slice(1).map(line => {
+        const values = [];
+        let current = "", inQuotes = false;
+        for (let c of line) {
+            if (c === '"') inQuotes = !inQuotes;
+            else if (c === ',' && !inQuotes) { values.push(current.trim()); current=""; }
+            else current += c;
+        }
+        values.push(current.trim());
+        const row = {};
+        headers.forEach((h,i)=>row[h]=values[i]||"");
+        return row;
+    });
 }
 
+function makeClickableCell(text){
+    return `<span class="item-link" data-item="${text}">${text}</span>`;
+}
+
+function createTableSection(filename, headers, rows){
+    const container = document.getElementById("csv-output");
+    const section = document.createElement("section");
+    const title = filename.replace(".csv","").replace(/_/g," ");
+    section.innerHTML = `<h2>${title}</h2><table>
+    <thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${headers.map(h=>{
+        const val = r[h]||"";
+        if(h.toLowerCase().includes("item")||h.toLowerCase().includes("to")||h.toLowerCase().includes("from")){
+            return `<td>${makeClickableCell(val)}</td>`;
+        }
+        return `<td>${val}</td>`;
+    }).join("")}</tr>`).join("")}</tbody></table>`;
+    container.appendChild(section);
+}
+
+// --- Load All CSVs from index.json ---
+async function loadAllCSVs(){
+    const DATA_DIR = "./data";
+    try{
+        const resp = await fetch(`${DATA_DIR}/index.json`);
+        if(!resp.ok) throw new Error("index.json not found");
+        const {files} = await resp.json();
+        for(const file of files){
+            const rows = await loadCSV(`${DATA_DIR}/${file}`);
+            if(rows.length>0){
+                createTableSection(file,Object.keys(rows[0]),rows);
+            }
+        }
+    } catch(e){
+        const container = document.getElementById("csv-output");
+        container.innerHTML = `<p style="color:red;">⚠️ Error loading CSVs: ${e.message}</p>`;
+    }
+}
 loadAllCSVs();
 
+// --- Item Modal ---
+document.addEventListener("click", async e=>{
+    if(!e.target.classList.contains("item-link")) return;
+    const item = e.target.dataset.item.toLowerCase();
+    const modal = document.getElementById("item-modal");
+    const title = document.getElementById("modal-title");
+    const details = document.getElementById("modal-details");
+    title.textContent = e.target.dataset.item;
+    details.innerHTML="<p>Loading details...</p>";
+    modal.classList.remove("hidden");
 
-document.addEventListener("click", async e => {
-  if (!e.target.classList.contains("item-link")) return;
+    // Load CSVs
+    const [recipes, artisanry] = await Promise.all([
+        loadCSV("data/recipes.csv"),
+        loadCSV("data/artisanry.csv")
+    ]);
 
-  const item = e.target.dataset.item.toLowerCase();
-  const modal = document.getElementById("item-modal");
-  const title = document.getElementById("modal-title");
-  const details = document.getElementById("modal-details");
+    const sources = artisanry.filter(r=>r.to?.toLowerCase()===item);
+    const usedIn = artisanry.filter(r=>r.from?.toLowerCase().includes(item));
+    const shopData = recipes.filter(r=>r.item?.toLowerCase()===item);
 
-  title.textContent = e.target.dataset.item;
-  details.innerHTML = "<p>Loading details...</p>";
-  modal.classList.remove("hidden");
+    let html="";
+    if(sources.length) html+=`<h3>🔨 Crafted From:</h3><ul>`+sources.map(s=>`<li>${s.action} → ${s.from} (${s.cost})</li>`).join("")+"</ul>";
+    if(usedIn.length) html+=`<h3>🧩 Used In:</h3><ul>`+usedIn.map(u=>`<li>${u.action} → ${u.to} (${u.cost})</li>`).join("")+"</ul>";
+    if(shopData.length) html+=`<h3>🏪 Shop Prices:</h3><ul>`+shopData.map(s=>`<li>${s.source}: ${s.cost}${s.currency}</li>`).join("")+"</ul>";
 
-  // Load CSVs
-  const [recipes, artisanry] = await Promise.all([
-    loadCSV("data/recipes.csv"),
-    loadCSV("data/artisanry.csv")
-  ]);
+    if(!html) html="<p>No details found.</p>";
 
-  // Find all rows related to the clicked item
-  const sources = artisanry.filter(r => r.to?.toLowerCase() === item);
-  const usedIn = artisanry.filter(r => r.from?.toLowerCase().includes(item));
-  const shopData = recipes.filter(r => r.item?.toLowerCase() === item);
+    const cheapest = shopData.sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost))[0];
+    if(cheapest) html+=`<h3>💡 Best Option:</h3><p>Buy from <strong>${cheapest.source}</strong> for ${cheapest.cost}${cheapest.currency}</p>`;
 
-  // Build info blocks
-  let html = "";
-
-  if (sources.length)
-    html += `<h3>🔨 Crafted From:</h3><ul>` + sources.map(s =>
-      `<li>${s.action} → ${s.from} (${s.cost})</li>`
-    ).join("") + `</ul>`;
-
-  if (usedIn.length)
-    html += `<h3>🧩 Used In:</h3><ul>` + usedIn.map(u =>
-      `<li>${u.action} → ${u.to} (${u.cost})</li>`
-    ).join("") + `</ul>`;
-
-  if (shopData.length)
-    html += `<h3>🏪 Shop Prices:</h3><ul>` + shopData.map(s =>
-      `<li>${s.source}: ${s.cost}${s.currency}</li>`
-    ).join("") + `</ul>`;
-
-  if (!html) html = "<p>No detailed data found for this item yet.</p>";
-
-  // Add efficiency logic (fastest/cheapest)
-  const cheapest = shopData.sort((a,b) => parseFloat(a.cost) - parseFloat(b.cost))[0];
-  if (cheapest)
-    html += `<h3>💡 Best Option:</h3><p>Buy from <strong>${cheapest.source}</strong> for ${cheapest.cost}${cheapest.currency} (cheapest known).</p>`;
-
-  details.innerHTML = html;
+    details.innerHTML=html;
 });
 
-document.getElementById("modal-close").addEventListener("click", () => {
-  document.getElementById("item-modal").classList.add("hidden");
-});
+document.getElementById("modal-close").addEventListener("click", ()=>document.getElementById("item-modal").classList.add("hidden"));
 
-  
 </script>
-
-
-  
-  <footer>
-    <p>© 2025 Star Resonance Fan Project — Data gathered by community contributors.</p>
-  </footer>
 </body>
 </html>
