@@ -329,7 +329,7 @@ document.addEventListener("click",async e=>{
   });
 
   let html="";
-  if(sources.length) html+=`<h3>🔨 Made From:</h3><ul>`+
+  if(sources.length) html+=`<h3>🔨 Comes From:</h3><ul>`+
       sources.map(s=>`<li>${s.action}: ${s.cin||""}${s.from} → ${s.cout||""}${s.to} (${s.cost})</li>`).join("")+
       "</ul>";
   if(usedIn.length) html+=`<h3>🧩 Used In:</h3><ul>`+
