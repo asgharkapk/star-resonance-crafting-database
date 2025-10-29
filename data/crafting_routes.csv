@@ -1,5 +1,5 @@
-action,count,from,count,to,output_qty,min_input_qty
-craft,28x,Pine Timber,,Charcoal,10,28
-craft,1x,Charcoal,,Burning Powder,15,1
-craft,2x,Charcoal,,Fast Burning Powder,3,2
-craft,1x,Burning Powder,,Mystery Metal,1,1
+action,cin,from,cout,to
+craft,28x,Pine Timber,,Charcoal
+craft,1x,Charcoal,,Burning Powder
+craft,2x,Charcoal,,Fast Burning Powder
+craft,1x,Burning Powder,,Mystery Metal
