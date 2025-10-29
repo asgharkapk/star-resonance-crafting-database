@@ -156,14 +156,19 @@ document.addEventListener("click", async e=>{
     Object.values(allData).forEach(rows=>{
         rows.forEach(r=>{
             const action = r.action || r.category || "—";
-            const from = r.from||"";
-            const to = r.to||"";
+            const from = r.from || "";
+            const to = r.to || "";
             const cost = r.cost || r.cost_F || r.cost_L || r.cost_H || "N/A";
-
-            if(to.toLowerCase()===item) sources.push({action, from, to, cost});
-            if(from.toLowerCase().includes(item)) usedIn.push({action, from, to, cost});
-
-            if(r.item && r.item.toLowerCase()===item) shopData.push(r);
+            const cin = r.cin || "";
+            const cout = r.cout || "";
+    
+            if(to.toLowerCase() === item)
+                sources.push({action, from, to, cost, cin, cout});
+            if(from.toLowerCase().includes(item))
+                usedIn.push({action, from, to, cost, cin, cout});
+    
+            if(r.item && r.item.toLowerCase() === item)
+                shopData.push(r);
         });
     });
 
