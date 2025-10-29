@@ -1,4 +1,4 @@
-action,,count,from,,count,to,cost
+action,,cin,from,,cout,to,cost
 craft,,1x,Flax,,3x,Refined Yarn,0F
 craft,,10x,Refined Yarn,,1x,Refined Cotton,0F
 buy,,,Exchange,,1x,Flax,246L
