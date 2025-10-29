@@ -1,6 +1,6 @@
-action,to,cost
-action,Buy Burning Powder,133L
-action,Charcoal (Artis),44L
-action,Charcoal (Homestead),14.67H
-action,Pine (Artis),32.48L
-action,Pine (Homestead),10.83H
+action,from,to,cost
+least price,Exchange,Buy Burning Powder,133L
+least price,Exchange,Charcoal (Artis),44L
+least price,Homestead,Charcoal (Homestead),14.67H
+least price,Exchange,Pine (Artis),32.48L
+least price,Homestead,Pine (Homestead),10.83H
