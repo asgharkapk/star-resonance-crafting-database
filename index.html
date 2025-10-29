@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Resonance Crafting Guide</title>
+
+<style>
+/* ======== Global Layout ======== */
+:root {
+  --bg-dark: #0a0c16;
+  --bg-panel: rgba(255, 255, 255, 0.06);
+  --accent: #00c8ff;
+  --accent-glow: 0 0 12px rgba(0,200,255,0.6);
+  --text-light: #f0f3ff;
+  --text-dim: #8ba0b5;
+  --radius: 14px;
+  --transition: 0.3s ease;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at top, #111428, #05060e);
+  color: var(--text-light);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ======== Header ======== */
+header {
+  background: rgba(10,14,30,0.6);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-align: center;
+  padding: 2rem 1rem;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+}
+header h1 {
+  margin: 0;
+  font-size: 2.2rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: var(--accent-glow);
+}
+
+/* ======== Navigation ======== */
+nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  padding: 0.8rem 0;
+  background: rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+nav a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-weight: 500;
+  position: relative;
+  transition: var(--transition);
+}
+nav a::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0%;
+  height: 2px;
+  background: var(--accent);
+  transition: var(--transition);
+}
+nav a:hover {
+  color: var(--accent);
+}
+nav a:hover::after {
+  width: 100%;
+}
+
+/* ======== Main ======== */
+main {
+  flex: 1;
+  max-width: 1100px;
+  margin: 2rem auto;
+  padding: 0 1rem 4rem;
+}
+section {
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  margin-bottom: 2rem;
+  padding: 1.5rem 2rem;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+  backdrop-filter: blur(6px);
+  transition: var(--transition);
+}
+section:hover {
+  box-shadow: inset 0 0 30px rgba(0,200,255,0.1);
+}
+h2 {
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+  color: var(--accent);
+  margin-top: 0;
+  text-transform: capitalize;
+}
+
+/* ======== Tables ======== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.95rem;
+}
+th, td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+th {
+  background: rgba(255,255,255,0.08);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+tr:nth-child(even) {
+  background: rgba(255,255,255,0.03);
+}
+
+/* ======== Links and Highlights ======== */
+.item-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  transition: var(--transition);
+}
+.item-link:hover {
+  color: #fff;
+  text-shadow: var(--accent-glow);
+}
+.highlight {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+/* ======== Modal ======== */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 20, 0.8);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.modal.hidden { display: none; }
+
+.modal-content {
+  background: linear-gradient(135deg, rgba(15,18,35,0.95), rgba(8,10,25,0.95));
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  padding: 2rem;
+  max-width: 600px;
+  width: 90%;
+  color: var(--text-light);
+  box-shadow: 0 0 20px rgba(0,200,255,0.25);
+  animation: popIn 0.3s ease;
+}
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+#modal-close {
+  float: right;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: var(--accent);
+  transition: var(--transition);
+}
+#modal-close:hover { color: #fff; text-shadow: var(--accent-glow); }
+
+/* ======== Footer ======== */
+footer {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--text-dim);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(6px);
+  font-size: 0.9rem;
+}
+footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+footer a:hover { text-decoration: underline; }
+</style>
+</head>
+
+<body>
+<header>
+  <h1>Star Resonance Crafting Guide</h1>
+</header>
+
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#materials">Materials</a>
+  <a href="#recipes">Recipes</a>
+  <a href="#cost">Cost Efficiency</a>
+</nav>
+
+<main>
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>Welcome to the <span class="highlight">Star Resonance Crafting Guide</span> — your futuristic terminal for discovering crafting materials, artisanry recipes, and cost optimization paths.</p>
+  </section>
+
+  <section id="csv-output">
+    <!-- Dynamic CSV content will appear here -->
+  </section>
+</main>
+
+<!-- ===== Modal ===== -->
+<div id="item-modal" class="modal hidden">
+  <div class="modal-content">
+    <span id="modal-close">&times;</span>
+    <h2 id="modal-title"></h2>
+    <div id="modal-details"></div>
+  </div>
+</div>
+
+<footer>
+  <p>© 2025 Star Resonance Fan Project — Built by the community. Visit <a href="https://asgharkapk.github.io/star-resonance-crafting-database/">project page</a>.</p>
+</footer>
+
+<!-- ===== JavaScript (logic unchanged) ===== -->
+<script>
+async function loadCSV(path){
+  const res = await fetch(path);
+  const text = await res.text();
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(",").map(h=>h.trim());
+  return lines.slice(1).map(line=>{
+      const values = [];
+      let current="", inQuotes=false;
+      for(let c of line){
+          if(c==='"') inQuotes=!inQuotes;
+          else if(c===','&&!inQuotes){values.push(current.trim());current="";}
+          else current+=c;
+      }
+      values.push(current.trim());
+      const row={};
+      const seen={};
+      headers.forEach((h,i)=>{
+          let key=h;
+          if(seen[h]) key=`${h}_${++seen[h]}`;
+          else seen[h]=1;
+          row[key]=values[i]||"";
+      });
+      return row;
+  });
+}
+
+function makeClickableCell(text){
+  return `<span class="item-link" data-item="${text}">${text}</span>`;
+}
+
+function createTableSection(filename, headers, rows){
+  const container=document.getElementById("csv-output");
+  const section=document.createElement("section");
+  const title=filename.replace(".csv","").replace(/_/g," ");
+  section.innerHTML=`<h2>${title}</h2><table>
+  <thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
+  <tbody>${rows.map(r=>`<tr>${headers.map(h=>{
+      const val=r[h]||"";
+      if(h.toLowerCase().includes("item")||h.toLowerCase().includes("to")||h.toLowerCase().includes("from")){
+          return `<td>${makeClickableCell(val)}</td>`;
+      }
+      return `<td>${val}</td>`;
+  }).join("")}</tr>`).join("")}</tbody></table>`;
+  container.appendChild(section);
+}
+
+let allData={};
+async function loadAllCSVs(){
+  const DATA_DIR="./data";
+  try{
+      const resp=await fetch(`${DATA_DIR}/index.json`);
+      if(!resp.ok) throw new Error("index.json not found");
+      const {files}=await resp.json();
+      for(const file of files){
+          const rows=await loadCSV(`${DATA_DIR}/${file}`);
+          if(rows.length>0){
+              createTableSection(file,Object.keys(rows[0]),rows);
+              allData[file.replace(/\.[^/.]+$/,"").toLowerCase()]=rows;
+          }
+      }
+  }catch(e){
+      document.getElementById("csv-output").innerHTML=`<p style="color:red;">⚠️ Error loading CSVs: ${e.message}</p>`;
+  }
+}
+loadAllCSVs();
+
+document.addEventListener("click",async e=>{
+  if(!e.target.classList.contains("item-link")) return;
+  const item=e.target.dataset.item.toLowerCase();
+  const modal=document.getElementById("item-modal");
+  const title=document.getElementById("modal-title");
+  const details=document.getElementById("modal-details");
+  title.textContent=e.target.dataset.item;
+  details.innerHTML="<p>Loading details...</p>";
+  modal.classList.remove("hidden");
+
+  let sources=[],usedIn=[],shopData=[];
+  Object.values(allData).forEach(rows=>{
+      rows.forEach(r=>{
+          const action=r.action||r.category||"—";
+          const from=r.from||"";
+          const to=r.to||"";
+          const cost=r.cost||r.cost_F||r.cost_L||r.cost_H||"N/A";
+          const cin=r.cin||"";
+          const cout=r.cout||"";
+          if(to.toLowerCase()===item) sources.push({action,from,to,cost,cin,cout});
+          if(from.toLowerCase().includes(item)) usedIn.push({action,from,to,cost,cin,cout});
+          if(r.item && r.item.toLowerCase()===item) shopData.push(r);
+      });
+  });
+
+  let html="";
+  if(sources.length) html+=`<h3>🔨 Made From:</h3><ul>`+
+      sources.map(s=>`<li>${s.action}: ${s.cin||""}${s.from} → ${s.cout||""}${s.to} (${s.cost})</li>`).join("")+
+      "</ul>";
+  if(usedIn.length) html+=`<h3>🧩 Used In:</h3><ul>`+
+      usedIn.map(u=>`<li>${u.action}: ${u.cin||""}${u.from} → ${u.cout||""}${u.to} (${u.cost})</li>`).join("")+
+      "</ul>";
+  if(shopData.length) html+=`<h3>🏪 Shop Prices:</h3><ul>`+
+      shopData.map(s=>`<li>${s.source}: ${s.cost}${s.currency||""}</li>`).join("")+
+      "</ul>";
+  if(!html) html="<p>No details found.</p>";
+  const cheapest=shopData.filter(s=>s.cost).sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost))[0];
+  if(cheapest) html+=`<h3>💡 Best Option:</h3><p>Buy from <strong>${cheapest.source}</strong> for ${cheapest.cost}${cheapest.currency||""}</p>`;
+  details.innerHTML=html;
+});
+
+document.getElementById("modal-close").addEventListener("click",()=>{
+  document.getElementById("item-modal").classList.add("hidden");
+});
+</script>
+</body>
+</html>
