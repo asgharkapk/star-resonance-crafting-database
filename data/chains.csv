@@ -1,0 +1,34 @@
+chain_id,step_no,action,cin,from,cout,to,cost,notes
+,,,,,,,,
+1,1,craft,28x,Pine Timber,10x,Charcoal,0F,
+1,2,craft,10x,Charcoal,150x,Burning Powder,200F,Combined chain entry from Artisanry: 28x Pine -> 150x Burning Powder (200F)
+,,,,,,,,
+2,1,buy,1x,Pine Timber,1x,Pine Timber,174L,Exchange buy price (per 1)
+2,2,craft,28x,Pine Timber,10x,Charcoal,0F,craft requires 28x Pine to produce 10x Charcoal
+2,3,craft,1x,Charcoal,15x,Burning Powder,20F,per-1-charcoal -> 15 powder recipe (scale as needed)
+,,,,,,,,
+3,1,buy,1x,Charcoal,1x,Charcoal,660L,Exchange buy price
+3,2,craft,1x,Charcoal,15x,Burning Powder,20F,
+,,,,,,,,
+4,1,craft,2x,Charcoal,3x,Fast Burning Powder,20F,
+,,,,,,,,
+5,1,farm,1x,Branch cluster+Wood branch+Thin twig,1x,Resin,,farm source listed for Resin (no F cost listed)
+5,2,craft,2x,Resin,15x,GemWax,20F,
+,,,,,,,,
+6,1,mine,1x,Raw Ore of Emerald,1x,Starlight Emerald lv.1,20F,
+6,2,craft,1x,Starlight Emerald lv.1,1x,Emerald,20F,
+6,3,mine,1x,Rich Ore of Emerald,1x,Starlight Emerald lv.2,20F,
+6,4,craft,1x,Starlight Emerald lv.2 + Gem Wax + Emerald,1x,Emerald - Agility 3,20F,
+,,,,,,,,
+7,1,craft,1x,Flax,3x,Refined Yarn,0F,
+7,2,craft,10x,Refined Yarn,1x,Refined Cotton,0F,
+7,3,buy,1x,Flax,1x,Flax,246L,Exchange buy price
+7,4,buy,1x,Refined Yarn,1x,Refined Yarn,120L,
+7,5,buy,1x,Refined Cotton,1x,Refined Cotton,1524L,
+,,,,,,,,
+8,1,craft,1x,Burning Powder,1x,Mystery Metal,10F,Smelting path
+8,2,craft,8x,Baru Ore,1x,Mystery Metal,10F,Alternative smelting
+,,,,,,,,
+9,1,craft,1x,Charcoal,15x,Burning Powder,20F,
+9,2,buy,1x,Charcoal,1x,Charcoal,220H,Homestead buy price
+,,,,,,,,
