@@ -1,12 +1,12 @@
 action,cin,from,cout,to,cost
-craft,1x,Charcoal,15x,Burning Powder,20F
-craft,2x,Charcoal,3x,Fast Burning Powder,20F
-craft,2x,Resin,15x,GemWax,20F
-craft,28x,Pine Timber,10x,Charcoal,0F
-craft,28x,Pine Timber,10x,Charcoal,200F
-craft,28x,Pine Timber,150x,Burning Powder,200F
-buy,,Exchange,1x,Charcoal,600L
-buy,,Homestead,1x,Charcoal,220H
-buy,,Exchange,1x,Pine Timber,174L
-buy,,Homestead,1x,Pine Timber,58H
-buy,,Trading Store,1x,Burning Powder,133L
+CRAFTING,1x,Charcoal,15x,Burning Powder,20F
+CRAFTING,2x,Charcoal,3x,Fast Burning Powder,20F
+CRAFTING,2x,Resin,15x,GemWax,20F
+CRAFTING,28x,Pine Timber,10x,Charcoal,0F
+CRAFTING,28x,Pine Timber,10x,Charcoal,200F
+CRAFTING,28x,Pine Timber,150x,Burning Powder,200F
+STORE,,Exchange,1x,Charcoal,600L
+STORE,,Homestead,1x,Charcoal,220H
+STORE,,Exchange,1x,Pine Timber,174L
+STORE,,Homestead,1x,Pine Timber,58H
+STORE,,Trading Store,1x,Burning Powder,133L
