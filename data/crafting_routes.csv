@@ -1,5 +1,5 @@
 action,cin,from,cout,to,cost
-craft,28x,Pine Timber,10x,Charcoal,0F
-craft,1x,Charcoal,15x,Burning Powder,20F
-craft,2x,Charcoal,3x,Fast Burning Powder,20F
-craft,1x,Burning Powder,1x,Mystery Metal,10F
+CRAFTING,28x,Pine Timber,10x,Charcoal,0F
+CRAFTING,1x,Charcoal,15x,Burning Powder,20F
+CRAFTING,2x,Charcoal,3x,Fast Burning Powder,20F
+CRAFTING,1x,Burning Powder,1x,Mystery Metal,10F
