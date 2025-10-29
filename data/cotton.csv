@@ -1,9 +1,9 @@
-action,,cin,from,,cout,to,cost
-craft,,1x,Flax,,3x,Refined Yarn,0F
-craft,,10x,Refined Yarn,,1x,Refined Cotton,0F
-buy,,,Exchange,,1x,Flax,246L
-buy,,,Exchange,,1x,Refined Yarn,120L
-buy,,,Exchange,,1x,Refined Cotton,1524L
-buy,,,Homestead,,1x,Flax,82H
-buy,,,Homestead,,1x,Refined Yarn,40H
-buy,,,Homestead,,1x,Refined Cotton,508H
+action,cin,from,cout,to,cost
+craft,1x,Flax,3x,Refined Yarn,0F
+craft,10x,Refined Yarn,1x,Refined Cotton,0F
+buy,Botany:,Exchange,1x,Flax,246L
+buy,Weaving:,Exchange,1x,Refined Yarn,120L
+buy,Weaving:,Exchange,1x,Refined Cotton,1524L
+buy,Weaving:,Homestead,1x,Flax,82H
+buy,Weaving:,Homestead,1x,Refined Yarn,40H
+buy,Weaving:,Homestead,1x,Refined Cotton,508H
