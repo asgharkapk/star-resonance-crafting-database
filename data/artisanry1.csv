@@ -1,4 +1,4 @@
-action,count,from,count,to,cost
+action,cin,from,cout,to,cost
 craft,1x,Charcoal,15x,Burning Powder,20F
 craft,2x,Charcoal,3x,Fast Burning Powder,20F
 craft,2x,Resin,15x,GemWax,20F
