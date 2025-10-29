@@ -1,4 +1,4 @@
-action,from,to,description
+action,from,to,cost
 define,L,Luno Coin,Used to buy items from Exchange stores and Trading Store
 define,F,Focus,Used as stamina to mine and craft items
 define,H,Homestead Coin,Used to buy items from Homestead store
