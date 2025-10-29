@@ -1,11 +1,11 @@
 chain_id,step_no,action,cin,from,cout,to,cost,notes
 ,,,,,,,,
-2,1,BUY,Artisanry,Exchange,1x,Pine Timber,174L,Exchange buy price (per 1)
+2,1,BUY,Artisanry:,Exchange,1x,Pine Timber,174L,Exchange buy price (per 1)
 2,2,CRAFT,28x,Pine Timber,10x,Charcoal,0F,craft requires 28x Pine to produce 10x Charcoal
 2,3,CRAFT,1x,Charcoal,15x,Burning Powder,20F,per-1-charcoal -> 15 powder recipe (scale as needed)
 ,,,,,,,,
-3,1,BUY,Artisanry,Exchange,1x,Charcoal,660L,Exchange buy price
-9,2,BUY,Store,Homestead,1x,Charcoal,220H,Homestead buy price
+3,1,BUY,Artisanry:,Exchange,1x,Charcoal,660L,Exchange buy price
+9,2,BUY,Artisanry:,Homestead,1x,Charcoal,220H,Homestead buy price
 3,2,CRAFT,1x,Charcoal,15x,Burning Powder,20F,
 ,,,,,,,,
 4,1,CRAFT,2x,Charcoal,3x,Fast Burning Powder,20F,
@@ -20,11 +20,11 @@ chain_id,step_no,action,cin,from,cout,to,cost,notes
 6,3,MINE,1x,Rich Ore of Emerald,1x,Starlight Emerald lv.2,20F,
 6,4,RECIPE,1x,Starlight Emerald lv.2 + Gem Wax + Emerald,1x,Emerald - Agility 3,20F,CRAFT
 ,,,,,,,,
-7,3,BUY,Botany,Exchange,1x,Flax,246L,Exchange buy price
+7,3,BUY,Botany:,Exchange,1x,Flax,246L,Exchange buy price
 7,1,CRAFT,1x,Flax,3x,Refined Yarn,0F,
-7,4,BUY,Weaving,Exchange,1x,Refined Yarn,120L,
+7,4,BUY,Weaving:,Exchange,1x,Refined Yarn,120L,
 7,2,CRAFT,10x,Refined Yarn,1x,Refined Cotton,0F,
-7,5,buy,Weaving,Exchange,1x,Refined Cotton,1524L,
+7,5,buy,Weaving:,Exchange,1x,Refined Cotton,1524L,
 ,,,,,,,,
 8,1,craft,1x,Burning Powder,1x,Mystery Metal,10F,Smelting path
 8,2,craft,8x,Baru Ore,1x,Mystery Metal,10F,Alternative smelting
