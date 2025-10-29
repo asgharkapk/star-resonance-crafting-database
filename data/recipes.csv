@@ -1,6 +1,6 @@
-action,from,to,cost,currency
-buy,Exchange,Charcoal,660,L
-buy,Homestead,Charcoal,220,H
-buy,Exchange,Pine Timber,174,L
-buy,Trading Store,Burning Powder,133,L
-buy,Homestead,Pine Timber,58,H
+action,source,item,from,to,cost,currency
+buy,Exchange,Charcoal,Exchange,Charcoal,660,L
+buy,Homestead,Charcoal,Homestead,Charcoal,220,H
+buy,Exchange,Pine Timber,Exchange,Pine Timber,174,L
+buy,Trading Store,Burning Powder,Trading Store,Burning Powder,133,L
+buy,Homestead,Pine Timber,Homestead,Pine Timber,58,H
