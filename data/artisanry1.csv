@@ -1,7 +1,7 @@
 action,cin,from,cout,to,cost
 CRAFTING,1x,Charcoal,15x,Burning Powder,20F
 CRAFTING,2x,Charcoal,3x,Fast Burning Powder,20F
-CRAFTING,2x,Resin,15x,GemWax,20F
+CRAFTING,2x,Resin,15x,Gem Wax,20F
 CRAFTING,28x,Pine Timber,10x,Charcoal,0F
 CRAFTING,28x,Pine Timber,10x,Charcoal,200F
 CRAFTING,28x,Pine Timber,150x,Burning Powder,200F
