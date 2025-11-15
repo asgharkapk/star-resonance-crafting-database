@@ -196,6 +196,69 @@ footer a {
   text-decoration: none;
 }
 footer a:hover { text-decoration: underline; }
+
+/* ===========================
+   🔥 CRAFTING CALCULATOR 
+   =========================== */
+<style>
+/* ===== Windows 7 Style Calculator Section ===== */
+#calculator {
+  background: #C0C0C0;       /* classic grey panel */
+  border: 2px solid #808080;
+  border-radius: 0;
+  padding: 10px;
+  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #404040;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#calculator table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 5px 0;
+  font-size: 0.9rem;
+  background: #E0E0E0;
+  border: 1px solid #808080;
+}
+
+#calculator th, #calculator td {
+  border: 1px solid #808080;
+  padding: 4px 6px;
+  text-align: left;
+  background: linear-gradient(to bottom, #F0F0F0, #C0C0C0);
+}
+
+#calculator th {
+  font-weight: bold;
+  color: #000;
+}
+
+#calculator input, #calculator select, #calculator button {
+  background: #FFF;
+  border: 2px solid #808080;
+  padding: 2px 4px;
+  font-size: 0.9rem;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#calculator button {
+  cursor: pointer;
+  background: linear-gradient(to bottom, #F0F0F0, #C0C0C0);
+  box-shadow: 1px 1px 0 #fff, -1px -1px 0 #404040;
+}
+#calculator button:hover {
+  background: linear-gradient(to bottom, #D0D0D0, #A0A0A0);
+}
+#calc-results table, #calc-recipe-paths p {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #E0E0E0;
+}
+#calc-debug { font-weight: bold; }
+</style>
+
+/* ===========================
+   🔥 CRAFTING CALCULATOR 
+   =========================== */
+
 </style>
 </head>
 
@@ -567,21 +630,29 @@ function resolveItemFull(item, amount, recipes, inv, path=[], seen=new Set()){
 function calculateAll(){
   try{
     document.getElementById("calc-debug").textContent="";
-    const target=getTargetItem();
-    const amount=getTargetAmount();
-    const have=getTargetHave();
-    const currencies=getCurrencies();
-    const inv={}; inv[target.toLowerCase()]=have;
-    const recipes=gatherAllRecipes();
+
+    const target = getTargetItem();
+    if(!target){ document.getElementById("calc-debug").textContent="⚠️ Select a target item"; return; }
+
+    const amount = getTargetAmount();
+    if(isNaN(amount) || amount <=0){ 
+      document.getElementById("calc-debug").textContent="⚠️ Invalid target amount"; return; 
+    }
+
+    const have = getTargetHave();
+    const currencies = getCurrencies();
+    const inv = {}; inv[target.toLowerCase()] = have;
+
+    const recipes = gatherAllRecipes(); // includes DB + user recipes (can be empty)
 
     const res = resolveItemFull(target, amount, recipes, inv);
 
     // Required Materials & Costs Table
     const rows = [];
     Object.keys(res.needs).forEach(k=>{
-      const qty=res.needs[k];
-      const shops = recipes.filter(r=>r.store && r.to.toLowerCase()===k.toLowerCase());
-      let best="N/A";
+      const qty = res.needs[k];
+      const shops = recipes.filter(r=>r.store && r.to?.toLowerCase()===k.toLowerCase());
+      let best = "N/A";
       if(shops.length){
         const s = shops.sort((a,b)=>parseFloat(a.cost||0)-parseFloat(b.cost||0))[0];
         best = `${qty * parseFloat(s.cost||0)} ${s.currency||''} (${s.store||''})`;
@@ -600,25 +671,29 @@ function calculateAll(){
     // Full Recipe Paths
     const pathsDiv = document.getElementById("calc-recipe-paths");
     pathsDiv.innerHTML = "";
-    res.paths.forEach(p=>{
-      pathsDiv.innerHTML += "<p>"+p.join(" → ")+"</p>";
-    });
+    if(res.paths.length===0){
+      pathsDiv.innerHTML = "<p>Direct purchase or no recipe available.</p>";
+    } else {
+      res.paths.forEach(p=>{
+        pathsDiv.innerHTML += "<p>"+p.join(" → ")+"</p>";
+      });
+    }
 
   } catch(e){
-    document.getElementById("calc-debug").textContent="Error during calculation: "+e.message;
+    document.getElementById("calc-debug").textContent="⚠️ Calculation error: "+e.message;
     console.error(e);
   }
 }
 
-/* ===== Auto-update on input change ===== */
+/* ===== Auto-update even if user recipe table is empty ===== */
 document.querySelectorAll("#calc-target-table input, #calc-target-table select, .calc-currency").forEach(inp=>{
   inp.oninput = calculateAll;
 });
 
-/* ===== Initialize ===== */
+/* ===== Init ===== */
 updateItemDropdown();
 renderUserRecipes();
-calculateAll();
+calculateAll();  // now always works
 /* ===========================
    🔥 CRAFTING CALCULATOR CORE
    =========================== */
