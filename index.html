@@ -237,36 +237,59 @@ footer a:hover { text-decoration: underline; }
 <section id="calculator">
   <h2>Crafting Calculator</h2>
 
-  <div style="padding:10px 0;">
-    <label>Target Item:</label>
-    <input id="calc-item" type="text" placeholder="e.g. Burning Powder">
+  <!-- Target item selection and amount -->
+  <table id="calc-target-table">
+    <thead>
+      <tr>
+        <th>Target Item</th>
+        <th>Amount Needed</th>
+        <th>Amount Owned</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><select id="calc-item"></select></td>
+        <td><input type="number" class="calc-amount" min="1" value="1"></td>
+        <td><input type="number" class="calc-have" min="0" value="0"></td>
+      </tr>
+    </tbody>
+  </table>
 
-    <label style="margin-left:20px;">Amount Needed:</label>
-    <input id="calc-amount" type="number" min="1" value="1">
+  <!-- User Currencies -->
+  <table id="calc-currency-table">
+    <thead>
+      <tr><th>Currency</th><th>Amount Owned</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>F</td><td><input type="number" class="calc-currency" value="0"></td></tr>
+      <tr><td>H</td><td><input type="number" class="calc-currency" value="0"></td></tr>
+      <tr><td>L</td><td><input type="number" class="calc-currency" value="0"></td></tr>
+    </tbody>
+  </table>
 
-    <button id="calc-run">Calculate</button>
-  </div>
+  <!-- User Recipe Table -->
+  <h3>User Recipes</h3>
+  <table id="user-recipes">
+    <thead>
+      <tr>
+        <th>Action</th><th>Cin</th><th>From</th><th>Cout</th><th>To</th><th>Cost</th><th>Remove</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <button id="add-user-recipe">Add Recipe Row</button>
 
-  <h3>Inventory Adjustments</h3>
-  <textarea id="calc-have" placeholder="Example:
-Charcoal = 20
-Pine Timber = 50
-"></textarea>
-
-  <h3>Your Currencies</h3>
-  <textarea id="calc-currency" placeholder="Example:
-F = 350
-H = 120
-L = 9000
-"></textarea>
-
-  <h3>Results</h3>
+  <!-- Results -->
+  <h3>Required Materials & Costs</h3>
   <div id="calc-results"></div>
 
-  <h3>Import Custom Recipe CSV</h3>
-  <input type="file" id="calc-import" accept=".csv">
+  <!-- Debug -->
+  <div id="calc-debug" style="color:red; margin-top:10px;"></div>
 </section>
-  
+/* ===========================
+   🔥 CRAFTING CALCULATOR 
+   =========================== */
+
 <footer>
   <p>© 2025 Star Resonance Fan Project — Built by the community. Visit <a href="https://asgharkapk.github.io/star-resonance-crafting-database/">project page</a>.</p>
 </footer>
@@ -388,185 +411,207 @@ document.getElementById("modal-close").addEventListener("click",()=>{
    🔥 CRAFTING CALCULATOR CORE
    =========================== */
 
-let customRecipes = []; // user-imported
+let customRecipes = [];
 
-function parseInv(text){
-  const out={};
-  text.split("\n").forEach(l=>{
-    const m=l.split("=");
-    if(m.length===2){
-      out[m[0].trim().toLowerCase()] = parseFloat(m[1]);
-    }
-  });
-  return out;
-}
+function updateItemDropdown(){
+  const select = document.getElementById("calc-item");
+  select.innerHTML = "";
+  const itemsSet = new Set();
 
-function parseCurrencies(text){
-  const out={};
-  text.split("\n").forEach(l=>{
-    const m=l.split("=");
-    if(m.length===2){
-      out[m[0].trim().toUpperCase()] = parseFloat(m[1]);
-    }
-  });
-  return out;
-}
-
-function gatherAllRecipes(){
-  const recipes = [];
-
+  // from database
   Object.values(allData).forEach(rows=>{
     rows.forEach(r=>{
-      if(r.action?.toUpperCase()==="CRAFTING" && r.from && r.to){
-        recipes.push({
-          from: r.from,
-          to: r.to,
-          cin: r.cin || "",
-          cout: r.cout || "",
-          cost: r.cost || "",
-          raw:r
-        });
-      }
-      if(r.action?.toUpperCase()==="STORE" && r.item){
-        recipes.push({
-          from: null,
-          to: r.item,
-          cin:"1x",
-          cout:"1x",
-          cost:r.cost || "",
-          currency:r.currency || "",
-          store:r.source||"Store",
-          raw:r
-        });
-      }
+      if(r.to) itemsSet.add(r.to);
+      if(r.from) r.from.split("+").forEach(f=>itemsSet.add(f.trim()));
     });
   });
 
+  // from user recipes
+  customRecipes.forEach(r=>{
+    if(r.to) itemsSet.add(r.to);
+    if(r.from) r.from.split("+").forEach(f=>itemsSet.add(f.trim()));
+  });
+
+  [...itemsSet].sort().forEach(i=>{
+    const opt = document.createElement("option");
+    opt.value=i; opt.textContent=i;
+    select.appendChild(opt);
+  });
+}
+
+/* ===== User Recipes Table Management ===== */
+function renderUserRecipes(){
+  const tbody = document.querySelector("#user-recipes tbody");
+  tbody.innerHTML = "";
+  customRecipes.forEach((r,idx)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><input value="${r.action||'CRAFTING'}"></td>
+                    <td><input value="${r.cin||''}"></td>
+                    <td><input value="${r.from||''}"></td>
+                    <td><input value="${r.cout||''}"></td>
+                    <td><input value="${r.to||''}"></td>
+                    <td><input value="${r.cost||''}"></td>
+                    <td><button class="remove-recipe">×</button></td>`;
+    tbody.appendChild(tr);
+
+    tr.querySelector(".remove-recipe").onclick = ()=>{
+      customRecipes.splice(idx,1);
+      renderUserRecipes();
+      calculateAll();
+    };
+
+    tr.querySelectorAll("input").forEach(input=>{
+      input.oninput = ()=>{
+        r.action = tr.children[0].querySelector("input").value;
+        r.cin = tr.children[1].querySelector("input").value;
+        r.from = tr.children[2].querySelector("input").value;
+        r.cout = tr.children[3].querySelector("input").value;
+        r.to = tr.children[4].querySelector("input").value;
+        r.cost = tr.children[5].querySelector("input").value;
+        calculateAll();
+      }
+    });
+  });
+}
+
+document.getElementById("add-user-recipe").onclick = ()=>{
+  customRecipes.push({action:"CRAFTING",cin:"1x",from:"",cout:"1x",to:"",cost:""});
+  renderUserRecipes();
+  updateItemDropdown();
+};
+
+/* ===== Parse Table Inputs ===== */
+function getTargetItem(){
+  const row=document.querySelector("#calc-target-table tbody tr");
+  return row.children[0].querySelector("select").value;
+}
+function getTargetAmount(){
+  const row=document.querySelector("#calc-target-table tbody tr");
+  return parseInt(row.children[1].querySelector("input").value);
+}
+function getTargetHave(){
+  const row=document.querySelector("#calc-target-table tbody tr");
+  return parseInt(row.children[2].querySelector("input").value)||0;
+}
+function getCurrencies(){
+  const out={};
+  document.querySelectorAll(".calc-currency").forEach((input,i)=>{
+    const curr = input.parentElement.previousElementSibling.textContent;
+    out[curr] = parseFloat(input.value)||0;
+  });
+  return out;
+}
+
+/* ===== Gather All Recipes ===== */
+function gatherAllRecipes(){
+  const recipes=[];
+  Object.values(allData).forEach(rows=>{
+    rows.forEach(r=>{
+      if(r.action?.toUpperCase()==="CRAFTING" && r.from && r.to){
+        recipes.push({...r});
+      }
+      if(r.action?.toUpperCase()==="STORE" && r.item){
+        recipes.push({...r});
+      }
+    });
+  });
   return recipes.concat(customRecipes);
 }
 
+/* ===== Parse Qty ===== */
 function parseQty(txt){
   if(!txt) return 1;
   const m=txt.match(/(\d+)\s*x/i);
   return m ? parseInt(m[1]) : 1;
 }
 
-/* Recursive dependency resolver */
-function resolveItem(item, amount, recipes, inv){
+/* ===== Multi-path Recursive Resolver ===== */
+function resolveItem(item,amount,recipes,inv,seen=new Set()){
   const name=item.toLowerCase();
+  if(seen.has(name+amount)) return {}; // prevent cycles
+  seen.add(name+amount);
 
-  // deduct inventory
-  if(inv[name]){
-    const used=Math.min(inv[name],amount);
-    amount-=used;
-    inv[name]-=used;
-    if(amount<=0) return {};
-  }
+  try{
+    let result={};
+    // deduct inventory
+    const owned=inv[name]||0;
+    if(owned>=amount){ inv[name]-=amount; return {}; }
+    amount -= owned;
+    inv[name]=0;
 
-  // get all production methods
-  const prod = recipes.filter(r=> r.to.toLowerCase()===name);
+    const prod = recipes.filter(r=>r.to?.toLowerCase()===name);
+    if(prod.length===0) { return {[item]:amount}; }
 
-  if(prod.length===0){ 
-    return {[item]:amount}; // raw material
-  }
+    let bestPath = prod[0]; // for now pick first (future: multi-path optimization)
+    const perOut = parseQty(bestPath.cout);
+    const batches = Math.ceil(amount/perOut);
 
-  // For now pick the FIRST recipe (later: full path optimization)
-  const r=prod[0];
-
-  const perOut = parseQty(r.cout);
-  const batches = Math.ceil(amount / perOut);
-
-  const result={};
-
-  if(r.from){ 
-    r.from.split("+").forEach(part=>{
-      part=part.trim();
-      const qty=parseQty(r.cin);
-      const fitem = part;
-      const needed = qty * batches;
-      const sub=resolveItem(fitem,needed,recipes,inv);
-      for(const k in sub){
-        result[k]=(result[k]||0)+sub[k];
-      }
-    });
-  }
-
-  return result;
-}
-
-function getCosts(needs, recipes, currencies){
-  const rows=[];
-  for(const item in needs){
-    const qty=needs[item];
-    const shops = recipes.filter(r=>r.store && r.to.toLowerCase()===item.toLowerCase());
-
-    let best="N/A";
-    if(shops.length){
-      const sorted=shops.sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
-      const s=sorted[0];
-      const totalCost = qty * parseFloat(s.cost);
-      best = `${totalCost} ${s.currency} (${s.store})`;
-    }
-
-    rows.push({item, qty, best});
-  }
-  return rows;
-}
-
-function renderTable(rows){
-  return `
-  <table>
-    <thead><tr><th>Item</th><th>Required</th><th>Best Cost</th></tr></thead>
-    <tbody>
-      ${rows.map(r=>`
-        <tr>
-          <td>${r.item}</td>
-          <td>${r.qty}</td>
-          <td>${r.best}</td>
-        </tr>
-      `).join("")}
-    </tbody>
-  </table>`;
-}
-
-/* ========= CALC BUTTON ========= */
-document.getElementById("calc-run").onclick=()=>{
-  const item=document.getElementById("calc-item").value.trim();
-  const amount=parseInt(document.getElementById("calc-amount").value);
-  const inv=parseInv(document.getElementById("calc-have").value);
-  const currencies=parseCurrencies(document.getElementById("calc-currency").value);
-
-  const recipes=gatherAllRecipes();
-  const needs=resolveItem(item,amount,recipes,inv);
-  const costRows=getCosts(needs,recipes,currencies);
-
-  document.getElementById("calc-results").innerHTML=renderTable(costRows);
-};
-
-/* ===== CSV IMPORT ===== */
-document.getElementById("calc-import").addEventListener("change", async(e)=>{
-  const file=e.target.files[0];
-  if(!file) return;
-  const text=await file.text();
-  const lines=text.split("\n");
-  const headers=lines[0].split(",");
-
-  lines.slice(1).forEach(l=>{
-    const v=l.split(",");
-    if(v.length>=6){
-      customRecipes.push({
-        action:"CRAFTING",
-        cin:v[1],
-        from:v[2],
-        cout:v[3],
-        to:v[4],
-        cost:v[5]
+    if(bestPath.from){
+      bestPath.from.split("+").forEach(f=>{
+        const qty=parseQty(bestPath.cin);
+        const sub=resolveItem(f.trim(),qty*batches,recipes,inv,seen);
+        for(const k in sub) result[k]=(result[k]||0)+sub[k];
       });
     }
-  });
 
-  alert("Custom recipes imported!");
+    return result;
+  } catch(e){
+    document.getElementById("calc-debug").textContent = "Calculation error: "+e.message;
+    console.error(e);
+    return {};
+  }
+}
+
+/* ===== Calculate & Render Table ===== */
+function calculateAll(){
+  try{
+    document.getElementById("calc-debug").textContent="";
+    const target=getTargetItem();
+    const amount=getTargetAmount();
+    const have=getTargetHave();
+    const currencies=getCurrencies();
+    const inv={}; inv[target.toLowerCase()] = have;
+    const recipes=gatherAllRecipes();
+    const needs=resolveItem(target,amount,recipes,inv);
+    const rows=[];
+    for(const k in needs){
+      const qty=needs[k];
+      // find shop cost
+      const shops = recipes.filter(r=>r.store && r.to.toLowerCase()===k.toLowerCase());
+      let best="N/A";
+      if(shops.length){
+        const s=shops.sort((a,b)=>parseFloat(a.cost||0)-parseFloat(b.cost||0))[0];
+        const totalCost = qty * parseFloat(s.cost||0);
+        best = `${totalCost} ${s.currency||''} (${s.store||''})`;
+      }
+      rows.push({item:k, qty, best});
+    }
+
+    document.getElementById("calc-results").innerHTML = `
+      <table>
+        <thead><tr><th>Item</th><th>Required</th><th>Best Cost</th></tr></thead>
+        <tbody>
+        ${rows.map(r=>`<tr><td>${r.item}</td><td>${r.qty}</td><td>${r.best}</td></tr>`).join("")}
+        </tbody>
+      </table>`;
+  } catch(e){
+    document.getElementById("calc-debug").textContent="Error during calculation: "+e.message;
+    console.error(e);
+  }
+}
+
+/* ===== Auto-update on input changes ===== */
+document.querySelectorAll("#calc-target-table input, #calc-target-table select, .calc-currency").forEach(inp=>{
+  inp.oninput = calculateAll;
 });
+
+/* ===== Init ===== */
+updateItemDropdown();
+renderUserRecipes();
+calculateAll();
+/* ===========================
+   🔥 CRAFTING CALCULATOR CORE
+   =========================== */
 
 </script>
 </body>
