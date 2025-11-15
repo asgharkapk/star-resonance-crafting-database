@@ -200,61 +200,69 @@ footer a:hover { text-decoration: underline; }
 /* ===========================
    🔥 CRAFTING CALCULATOR 
    =========================== */
-<style>
-/* ===== Windows 7 Style Calculator Section ===== */
+/* ===== Dark Mode Windows 11 Style Calculator ===== */
 #calculator {
-  background: #C0C0C0;       /* classic grey panel */
-  border: 2px solid #808080;
-  border-radius: 0;
-  padding: 10px;
-  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #404040;
+  background: #1e1e2f;          /* dark panel */
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #e0e0e0;
 }
 
 #calculator table {
   width: 100%;
   border-collapse: collapse;
-  margin: 5px 0;
-  font-size: 0.9rem;
-  background: #E0E0E0;
-  border: 1px solid #808080;
+  margin: 8px 0;
+  font-size: 0.95rem;
+  background: #2a2a3f;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 #calculator th, #calculator td {
-  border: 1px solid #808080;
-  padding: 4px 6px;
+  border-bottom: 1px solid #3a3a55;
+  padding: 6px 8px;
   text-align: left;
-  background: linear-gradient(to bottom, #F0F0F0, #C0C0C0);
 }
 
 #calculator th {
-  font-weight: bold;
-  color: #000;
+  background: #3a3a55;
+  font-weight: 600;
+  color: #ffffff;
 }
 
 #calculator input, #calculator select, #calculator button {
-  background: #FFF;
-  border: 2px solid #808080;
-  padding: 2px 4px;
+  background: #2a2a3f;
+  border: 1px solid #555577;
+  border-radius: 6px;
+  padding: 4px 6px;
   font-size: 0.9rem;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #e0e0e0;
+}
+
+#calculator input:focus, #calculator select:focus {
+  outline: 2px solid #0a84ff;
+  outline-offset: 1px;
 }
 
 #calculator button {
   cursor: pointer;
-  background: linear-gradient(to bottom, #F0F0F0, #C0C0C0);
-  box-shadow: 1px 1px 0 #fff, -1px -1px 0 #404040;
+  background: linear-gradient(145deg, #3a3a55, #2a2a3f);
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+  color: #fff;
 }
+
 #calculator button:hover {
-  background: linear-gradient(to bottom, #D0D0D0, #A0A0A0);
+  background: linear-gradient(145deg, #4a4a66, #3a3a55);
 }
+
 #calc-results table, #calc-recipe-paths p {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: #E0E0E0;
+  background: #2a2a3f;
 }
-#calc-debug { font-weight: bold; }
-</style>
 
+#calc-debug { font-weight: bold; color: #ff4d4d; }
 /* ===========================
    🔥 CRAFTING CALCULATOR 
    =========================== */
@@ -482,17 +490,24 @@ document.getElementById("modal-close").addEventListener("click",()=>{
 let customRecipes = [];
 
 /* ===== Utility Functions ===== */
+/* ===== Fix Target Item Dropdown + Live Update ===== */
+
+/* ===== Gather all possible items for dropdown ===== */
 function updateItemDropdown(){
   const select = document.getElementById("calc-item");
+  const prevVal = select.value;
   select.innerHTML = "";
   const itemsSet = new Set();
 
+  // database items
   Object.values(allData).forEach(rows=>{
     rows.forEach(r=>{
       if(r.to) itemsSet.add(r.to);
       if(r.from) r.from.split("+").forEach(f=>itemsSet.add(f.trim()));
     });
   });
+
+  // user recipes
   customRecipes.forEach(r=>{
     if(r.to) itemsSet.add(r.to);
     if(r.from) r.from.split("+").forEach(f=>itemsSet.add(f.trim()));
@@ -503,9 +518,15 @@ function updateItemDropdown(){
     opt.value=i; opt.textContent=i;
     select.appendChild(opt);
   });
+
+  // restore previous selection if exists
+  if(itemsSet.has(prevVal)) select.value = prevVal;
+
+  calculateAll(); // recalc whenever dropdown updates
 }
 
 /* ===== User Recipes Table ===== */
+/* ===== Render User Recipes Table (live update) ===== */
 function renderUserRecipes(){
   const tbody = document.querySelector("#user-recipes tbody");
   tbody.innerHTML = "";
@@ -523,19 +544,25 @@ function renderUserRecipes(){
     tr.querySelector(".remove-recipe").onclick = ()=>{
       customRecipes.splice(idx,1);
       renderUserRecipes();
-      calculateAll();
+      updateItemDropdown();
     };
 
+    // LIVE update for calculation while editing
     tr.querySelectorAll("input").forEach(input=>{
       input.oninput = ()=>{
-        r.action = tr.children[0].querySelector("input").value;
-        r.cin = tr.children[1].querySelector("input").value;
-        r.from = tr.children[2].querySelector("input").value;
-        r.cout = tr.children[3].querySelector("input").value;
-        r.to = tr.children[4].querySelector("input").value;
-        r.cost = tr.children[5].querySelector("input").value;
-        calculateAll();
-      };
+        try{
+          r.action = tr.children[0].querySelector("input").value;
+          r.cin = tr.children[1].querySelector("input").value;
+          r.from = tr.children[2].querySelector("input").value;
+          r.cout = tr.children[3].querySelector("input").value;
+          r.to = tr.children[4].querySelector("input").value;
+          r.cost = tr.children[5].querySelector("input").value;
+          updateItemDropdown();  // refresh dropdown to include new/edited items
+          calculateAll();        // live recalculation
+        } catch(e){
+          document.getElementById("calc-debug").textContent="⚠️ User input error: "+e.message;
+        }
+      }
     });
   });
 }
@@ -686,6 +713,7 @@ function calculateAll(){
 }
 
 /* ===== Auto-update even if user recipe table is empty ===== */
+/* ===== Auto-update for other inputs ===== */
 document.querySelectorAll("#calc-target-table input, #calc-target-table select, .calc-currency").forEach(inp=>{
   inp.oninput = calculateAll;
 });
