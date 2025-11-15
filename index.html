@@ -237,7 +237,7 @@ footer a:hover { text-decoration: underline; }
 <section id="calculator">
   <h2>Crafting Calculator</h2>
 
-  <!-- Target item selection and amount -->
+  <!-- Target Item Table -->
   <table id="calc-target-table">
     <thead>
       <tr>
@@ -267,7 +267,7 @@ footer a:hover { text-decoration: underline; }
     </tbody>
   </table>
 
-  <!-- User Recipe Table -->
+  <!-- User Recipes Table -->
   <h3>User Recipes</h3>
   <table id="user-recipes">
     <thead>
@@ -279,11 +279,15 @@ footer a:hover { text-decoration: underline; }
   </table>
   <button id="add-user-recipe">Add Recipe Row</button>
 
-  <!-- Results -->
+  <!-- Results Table -->
   <h3>Required Materials & Costs</h3>
   <div id="calc-results"></div>
 
-  <!-- Debug -->
+  <!-- Full Recipe Paths -->
+  <h3>Full Crafting Paths</h3>
+  <div id="calc-recipe-paths"></div>
+
+  <!-- Debug / Errors -->
   <div id="calc-debug" style="color:red; margin-top:10px;"></div>
 </section>
 <!-- ===========================
@@ -410,23 +414,22 @@ document.getElementById("modal-close").addEventListener("click",()=>{
 /* ===========================
    🔥 CRAFTING CALCULATOR CORE
    =========================== */
+/* ===== Redesigned Option B Calculator ===== */
 
 let customRecipes = [];
 
+/* ===== Utility Functions ===== */
 function updateItemDropdown(){
   const select = document.getElementById("calc-item");
   select.innerHTML = "";
   const itemsSet = new Set();
 
-  // from database
   Object.values(allData).forEach(rows=>{
     rows.forEach(r=>{
       if(r.to) itemsSet.add(r.to);
       if(r.from) r.from.split("+").forEach(f=>itemsSet.add(f.trim()));
     });
   });
-
-  // from user recipes
   customRecipes.forEach(r=>{
     if(r.to) itemsSet.add(r.to);
     if(r.from) r.from.split("+").forEach(f=>itemsSet.add(f.trim()));
@@ -439,7 +442,7 @@ function updateItemDropdown(){
   });
 }
 
-/* ===== User Recipes Table Management ===== */
+/* ===== User Recipes Table ===== */
 function renderUserRecipes(){
   const tbody = document.querySelector("#user-recipes tbody");
   tbody.innerHTML = "";
@@ -469,7 +472,7 @@ function renderUserRecipes(){
         r.to = tr.children[4].querySelector("input").value;
         r.cost = tr.children[5].querySelector("input").value;
         calculateAll();
-      }
+      };
     });
   });
 }
@@ -480,19 +483,10 @@ document.getElementById("add-user-recipe").onclick = ()=>{
   updateItemDropdown();
 };
 
-/* ===== Parse Table Inputs ===== */
-function getTargetItem(){
-  const row=document.querySelector("#calc-target-table tbody tr");
-  return row.children[0].querySelector("select").value;
-}
-function getTargetAmount(){
-  const row=document.querySelector("#calc-target-table tbody tr");
-  return parseInt(row.children[1].querySelector("input").value);
-}
-function getTargetHave(){
-  const row=document.querySelector("#calc-target-table tbody tr");
-  return parseInt(row.children[2].querySelector("input").value)||0;
-}
+/* ===== Parse Inputs ===== */
+function getTargetItem(){ return document.querySelector("#calc-target-table select").value; }
+function getTargetAmount(){ return parseInt(document.querySelector("#calc-target-table .calc-amount").value); }
+function getTargetHave(){ return parseInt(document.querySelector("#calc-target-table .calc-have").value)||0; }
 function getCurrencies(){
   const out={};
   document.querySelectorAll(".calc-currency").forEach((input,i)=>{
@@ -502,67 +496,74 @@ function getCurrencies(){
   return out;
 }
 
-/* ===== Gather All Recipes ===== */
+/* ===== Gather Recipes ===== */
 function gatherAllRecipes(){
   const recipes=[];
   Object.values(allData).forEach(rows=>{
     rows.forEach(r=>{
-      if(r.action?.toUpperCase()==="CRAFTING" && r.from && r.to){
-        recipes.push({...r});
-      }
-      if(r.action?.toUpperCase()==="STORE" && r.item){
-        recipes.push({...r});
-      }
+      if(r.action?.toUpperCase()==="CRAFTING" && r.from && r.to) recipes.push({...r});
+      if(r.action?.toUpperCase()==="STORE" && r.item) recipes.push({...r});
     });
   });
   return recipes.concat(customRecipes);
 }
 
-/* ===== Parse Qty ===== */
+/* ===== Parse Quantity ===== */
 function parseQty(txt){
   if(!txt) return 1;
   const m=txt.match(/(\d+)\s*x/i);
   return m ? parseInt(m[1]) : 1;
 }
 
-/* ===== Multi-path Recursive Resolver ===== */
-function resolveItem(item,amount,recipes,inv,seen=new Set()){
+/* ===== Multi-path Resolver with Paths ===== */
+function resolveItemFull(item, amount, recipes, inv, path=[], seen=new Set()){
   const name=item.toLowerCase();
-  if(seen.has(name+amount)) return {}; // prevent cycles
+  if(seen.has(name+amount)) return {needs:{}, paths:[]}; // prevent cycles
   seen.add(name+amount);
 
+  const result = {needs:{}, paths:[]};
   try{
-    let result={};
-    // deduct inventory
-    const owned=inv[name]||0;
-    if(owned>=amount){ inv[name]-=amount; return {}; }
-    amount -= owned;
-    inv[name]=0;
+    // Deduct inventory
+    const owned = inv[name]||0;
+    if(owned>=amount){ inv[name]-=amount; return result; }
+    amount -= owned; inv[name]=0;
 
+    // Find all recipes producing this item
     const prod = recipes.filter(r=>r.to?.toLowerCase()===name);
-    if(prod.length===0) { return {[item]:amount}; }
-
-    let bestPath = prod[0]; // for now pick first (future: multi-path optimization)
-    const perOut = parseQty(bestPath.cout);
-    const batches = Math.ceil(amount/perOut);
-
-    if(bestPath.from){
-      bestPath.from.split("+").forEach(f=>{
-        const qty=parseQty(bestPath.cin);
-        const sub=resolveItem(f.trim(),qty*batches,recipes,inv,seen);
-        for(const k in sub) result[k]=(result[k]||0)+sub[k];
-      });
+    if(prod.length===0){ 
+      result.needs[item]=amount;
+      result.paths.push(path.concat(`${amount}x ${item}`));
+      return result;
     }
 
-    return result;
+    // For multi-path, iterate all recipes
+    prod.forEach(r=>{
+      const perOut = parseQty(r.cout);
+      const batches = Math.ceil(amount/perOut);
+      let newPath = path.slice();
+      let fromStr = r.from || '';
+      if(fromStr) newPath.push(`${r.action||'CRAFTING'}: ${r.cin||''}${r.from} -> ${r.cout||''}${r.to} (${r.cost||''})`);
+      let subNeeds = {};
+      let subPaths = [];
+      if(r.from){
+        r.from.split("+").forEach(f=>{
+          const qty = parseQty(r.cin) * batches;
+          const sub = resolveItemFull(f.trim(), qty, recipes, inv, newPath, seen);
+          Object.keys(sub.needs).forEach(k=>subNeeds[k]=(subNeeds[k]||0)+sub.needs[k]);
+          subPaths = subPaths.concat(sub.paths);
+        });
+      }
+      Object.keys(subNeeds).forEach(k=>result.needs[k]=(result.needs[k]||0)+subNeeds[k]);
+      result.paths = result.paths.concat(subPaths.length?subPaths:[newPath]);
+    });
   } catch(e){
-    document.getElementById("calc-debug").textContent = "Calculation error: "+e.message;
+    document.getElementById("calc-debug").textContent="Calculation error: "+e.message;
     console.error(e);
-    return {};
   }
+  return result;
 }
 
-/* ===== Calculate & Render Table ===== */
+/* ===== Render Tables ===== */
 function calculateAll(){
   try{
     document.getElementById("calc-debug").textContent="";
@@ -570,42 +571,51 @@ function calculateAll(){
     const amount=getTargetAmount();
     const have=getTargetHave();
     const currencies=getCurrencies();
-    const inv={}; inv[target.toLowerCase()] = have;
+    const inv={}; inv[target.toLowerCase()]=have;
     const recipes=gatherAllRecipes();
-    const needs=resolveItem(target,amount,recipes,inv);
-    const rows=[];
-    for(const k in needs){
-      const qty=needs[k];
-      // find shop cost
+
+    const res = resolveItemFull(target, amount, recipes, inv);
+
+    // Required Materials & Costs Table
+    const rows = [];
+    Object.keys(res.needs).forEach(k=>{
+      const qty=res.needs[k];
       const shops = recipes.filter(r=>r.store && r.to.toLowerCase()===k.toLowerCase());
       let best="N/A";
       if(shops.length){
-        const s=shops.sort((a,b)=>parseFloat(a.cost||0)-parseFloat(b.cost||0))[0];
-        const totalCost = qty * parseFloat(s.cost||0);
-        best = `${totalCost} ${s.currency||''} (${s.store||''})`;
+        const s = shops.sort((a,b)=>parseFloat(a.cost||0)-parseFloat(b.cost||0))[0];
+        best = `${qty * parseFloat(s.cost||0)} ${s.currency||''} (${s.store||''})`;
       }
       rows.push({item:k, qty, best});
-    }
+    });
 
-    document.getElementById("calc-results").innerHTML = `
+    document.getElementById("calc-results").innerHTML=`
       <table>
         <thead><tr><th>Item</th><th>Required</th><th>Best Cost</th></tr></thead>
         <tbody>
         ${rows.map(r=>`<tr><td>${r.item}</td><td>${r.qty}</td><td>${r.best}</td></tr>`).join("")}
         </tbody>
       </table>`;
+
+    // Full Recipe Paths
+    const pathsDiv = document.getElementById("calc-recipe-paths");
+    pathsDiv.innerHTML = "";
+    res.paths.forEach(p=>{
+      pathsDiv.innerHTML += "<p>"+p.join(" → ")+"</p>";
+    });
+
   } catch(e){
     document.getElementById("calc-debug").textContent="Error during calculation: "+e.message;
     console.error(e);
   }
 }
 
-/* ===== Auto-update on input changes ===== */
+/* ===== Auto-update on input change ===== */
 document.querySelectorAll("#calc-target-table input, #calc-target-table select, .calc-currency").forEach(inp=>{
   inp.oninput = calculateAll;
 });
 
-/* ===== Init ===== */
+/* ===== Initialize ===== */
 updateItemDropdown();
 renderUserRecipes();
 calculateAll();
