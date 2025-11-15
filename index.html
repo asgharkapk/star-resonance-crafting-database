@@ -231,6 +231,42 @@ footer a:hover { text-decoration: underline; }
   </div>
 </div>
 
+/* ===========================
+   🔥 CRAFTING CALCULATOR 
+   =========================== */
+<section id="calculator">
+  <h2>Crafting Calculator</h2>
+
+  <div style="padding:10px 0;">
+    <label>Target Item:</label>
+    <input id="calc-item" type="text" placeholder="e.g. Burning Powder">
+
+    <label style="margin-left:20px;">Amount Needed:</label>
+    <input id="calc-amount" type="number" min="1" value="1">
+
+    <button id="calc-run">Calculate</button>
+  </div>
+
+  <h3>Inventory Adjustments</h3>
+  <textarea id="calc-have" placeholder="Example:
+Charcoal = 20
+Pine Timber = 50
+"></textarea>
+
+  <h3>Your Currencies</h3>
+  <textarea id="calc-currency" placeholder="Example:
+F = 350
+H = 120
+L = 9000
+"></textarea>
+
+  <h3>Results</h3>
+  <div id="calc-results"></div>
+
+  <h3>Import Custom Recipe CSV</h3>
+  <input type="file" id="calc-import" accept=".csv">
+</section>
+  
 <footer>
   <p>© 2025 Star Resonance Fan Project — Built by the community. Visit <a href="https://asgharkapk.github.io/star-resonance-crafting-database/">project page</a>.</p>
 </footer>
@@ -347,6 +383,191 @@ document.addEventListener("click",async e=>{
 document.getElementById("modal-close").addEventListener("click",()=>{
   document.getElementById("item-modal").classList.add("hidden");
 });
+
+/* ===========================
+   🔥 CRAFTING CALCULATOR CORE
+   =========================== */
+
+let customRecipes = []; // user-imported
+
+function parseInv(text){
+  const out={};
+  text.split("\n").forEach(l=>{
+    const m=l.split("=");
+    if(m.length===2){
+      out[m[0].trim().toLowerCase()] = parseFloat(m[1]);
+    }
+  });
+  return out;
+}
+
+function parseCurrencies(text){
+  const out={};
+  text.split("\n").forEach(l=>{
+    const m=l.split("=");
+    if(m.length===2){
+      out[m[0].trim().toUpperCase()] = parseFloat(m[1]);
+    }
+  });
+  return out;
+}
+
+function gatherAllRecipes(){
+  const recipes = [];
+
+  Object.values(allData).forEach(rows=>{
+    rows.forEach(r=>{
+      if(r.action?.toUpperCase()==="CRAFTING" && r.from && r.to){
+        recipes.push({
+          from: r.from,
+          to: r.to,
+          cin: r.cin || "",
+          cout: r.cout || "",
+          cost: r.cost || "",
+          raw:r
+        });
+      }
+      if(r.action?.toUpperCase()==="STORE" && r.item){
+        recipes.push({
+          from: null,
+          to: r.item,
+          cin:"1x",
+          cout:"1x",
+          cost:r.cost || "",
+          currency:r.currency || "",
+          store:r.source||"Store",
+          raw:r
+        });
+      }
+    });
+  });
+
+  return recipes.concat(customRecipes);
+}
+
+function parseQty(txt){
+  if(!txt) return 1;
+  const m=txt.match(/(\d+)\s*x/i);
+  return m ? parseInt(m[1]) : 1;
+}
+
+/* Recursive dependency resolver */
+function resolveItem(item, amount, recipes, inv){
+  const name=item.toLowerCase();
+
+  // deduct inventory
+  if(inv[name]){
+    const used=Math.min(inv[name],amount);
+    amount-=used;
+    inv[name]-=used;
+    if(amount<=0) return {};
+  }
+
+  // get all production methods
+  const prod = recipes.filter(r=> r.to.toLowerCase()===name);
+
+  if(prod.length===0){ 
+    return {[item]:amount}; // raw material
+  }
+
+  // For now pick the FIRST recipe (later: full path optimization)
+  const r=prod[0];
+
+  const perOut = parseQty(r.cout);
+  const batches = Math.ceil(amount / perOut);
+
+  const result={};
+
+  if(r.from){ 
+    r.from.split("+").forEach(part=>{
+      part=part.trim();
+      const qty=parseQty(r.cin);
+      const fitem = part;
+      const needed = qty * batches;
+      const sub=resolveItem(fitem,needed,recipes,inv);
+      for(const k in sub){
+        result[k]=(result[k]||0)+sub[k];
+      }
+    });
+  }
+
+  return result;
+}
+
+function getCosts(needs, recipes, currencies){
+  const rows=[];
+  for(const item in needs){
+    const qty=needs[item];
+    const shops = recipes.filter(r=>r.store && r.to.toLowerCase()===item.toLowerCase());
+
+    let best="N/A";
+    if(shops.length){
+      const sorted=shops.sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
+      const s=sorted[0];
+      const totalCost = qty * parseFloat(s.cost);
+      best = `${totalCost} ${s.currency} (${s.store})`;
+    }
+
+    rows.push({item, qty, best});
+  }
+  return rows;
+}
+
+function renderTable(rows){
+  return `
+  <table>
+    <thead><tr><th>Item</th><th>Required</th><th>Best Cost</th></tr></thead>
+    <tbody>
+      ${rows.map(r=>`
+        <tr>
+          <td>${r.item}</td>
+          <td>${r.qty}</td>
+          <td>${r.best}</td>
+        </tr>
+      `).join("")}
+    </tbody>
+  </table>`;
+}
+
+/* ========= CALC BUTTON ========= */
+document.getElementById("calc-run").onclick=()=>{
+  const item=document.getElementById("calc-item").value.trim();
+  const amount=parseInt(document.getElementById("calc-amount").value);
+  const inv=parseInv(document.getElementById("calc-have").value);
+  const currencies=parseCurrencies(document.getElementById("calc-currency").value);
+
+  const recipes=gatherAllRecipes();
+  const needs=resolveItem(item,amount,recipes,inv);
+  const costRows=getCosts(needs,recipes,currencies);
+
+  document.getElementById("calc-results").innerHTML=renderTable(costRows);
+};
+
+/* ===== CSV IMPORT ===== */
+document.getElementById("calc-import").addEventListener("change", async(e)=>{
+  const file=e.target.files[0];
+  if(!file) return;
+  const text=await file.text();
+  const lines=text.split("\n");
+  const headers=lines[0].split(",");
+
+  lines.slice(1).forEach(l=>{
+    const v=l.split(",");
+    if(v.length>=6){
+      customRecipes.push({
+        action:"CRAFTING",
+        cin:v[1],
+        from:v[2],
+        cout:v[3],
+        to:v[4],
+        cost:v[5]
+      });
+    }
+  });
+
+  alert("Custom recipes imported!");
+});
+
 </script>
 </body>
 </html>
