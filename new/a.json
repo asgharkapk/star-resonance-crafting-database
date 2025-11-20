@@ -1,0 +1,62 @@
+{
+  "items": {
+    "Iron Ore": {
+      "sources": [
+        { "type": "farm" },
+        { "type": "shop", "shop": "Blacksmith", "currency": "Gold", "price": 5 }
+      ],
+      "used_in": ["Iron Bar"]
+    },
+    "Wood": {
+      "sources": [
+        { "type": "farm" }
+      ],
+      "used_in": ["Sword", "Bow"]
+    },
+    "Leather": {
+      "sources": [
+        { "type": "shop", "shop": "Tannery", "currency": "Silver", "price": 10 }
+      ],
+      "used_in": ["Bow", "Armor"]
+    },
+    "Iron Bar": {
+      "sources": [
+        { "type": "craft", "from": ["Iron Ore"], "currency": "CraftEnergy", "price": 2 }
+      ],
+      "used_in": ["Sword", "Shield"]
+    },
+    "Sword": {
+      "sources": [
+        { "type": "craft", "from": ["Iron Bar", "Wood"], "currency": "CraftEnergy", "price": 5 },
+        { "type": "shop", "shop": "Weapon Shop", "currency": "Gold", "price": 120 }
+      ],
+      "used_in": []
+    },
+    "Bow": {
+      "sources": [
+        { "type": "craft", "from": ["Wood", "Leather"], "currency": "CraftEnergy", "price": 4 }
+      ],
+      "used_in": []
+    },
+    "Shield": {
+      "sources": [
+        { "type": "craft", "from": ["Iron Bar", "Wood"], "currency": "CraftEnergy", "price": 6 },
+        { "type": "shop", "shop": "Weapon Shop", "currency": "Gold", "price": 90 }
+      ],
+      "used_in": []
+    },
+    "Armor": {
+      "sources": [
+        { "type": "craft", "from": ["Leather", "Iron Bar"], "currency": "CraftEnergy", "price": 8 },
+        { "type": "shop", "shop": "Armory", "currency": "Gems", "price": 20 }
+      ],
+      "used_in": []
+    }
+  },
+  "shops": {
+    "Blacksmith": { "currency": "Gold" },
+    "Weapon Shop": { "currency": "Gold" },
+    "Tannery": { "currency": "Silver" },
+    "Armory": { "currency": "Gems" }
+  }
+}
