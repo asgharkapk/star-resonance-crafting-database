@@ -1,0 +1,38 @@
+{
+  "items": {
+    "Iron Ore": {
+      "sources": [
+        { "type": "farm" },
+        { "type": "shop", "shop": "Blacksmith", "currency": "Gold", "price": 5 }
+      ],
+      "used_in": ["Iron Bar"]
+    },
+
+    "Iron Bar": {
+      "sources": [
+        { "type": "craft", "from": ["Iron Ore"], "currency": "CraftEnergy", "price": 2 }
+      ],
+      "used_in": ["Sword"]
+    },
+
+    "Wood": {
+      "sources": [
+        { "type": "farm" }
+      ],
+      "used_in": ["Sword"]
+    },
+
+    "Sword": {
+      "sources": [
+        { "type": "shop", "shop": "Weapon Shop", "currency": "Gold", "price": 120 }
+      ],
+      "used_in": []
+    }
+  },
+
+  "shops": {
+    "Blacksmith": { "currency": "Gold" },
+    "Weapon Shop": { "currency": "Gold" },
+    "Special Shop": { "currency": "Gems" }
+  }
+}
