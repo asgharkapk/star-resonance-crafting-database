@@ -72,7 +72,6 @@ const width = window.innerWidth;
 const height = window.innerHeight;
 
 const infoBox = document.getElementById("infoBox");
-
 document.getElementById("fileInput").addEventListener("change", handleFile);
 
 function handleFile() {
@@ -92,64 +91,76 @@ function handleFile() {
 }
 
 function buildGraph(data) {
-
   const items = data.items;
-  const nodes = [];
-  const links = [];
+  let nodes = [];
+  let links = [];
 
-  // Build nodes
-  Object.keys(items).forEach(item => {
-    nodes.push({ id: item, type: "item" });
+  // Create item nodes
+  Object.keys(items).forEach(itemName => {
+    nodes.push({ id: itemName, type: "item" });
   });
 
-  // Build links based on "sources"
-  Object.keys(items).forEach(item => {
-    const entry = items[item];
+  // Create edges & source nodes
+  Object.keys(items).forEach(itemName => {
+    const entry = items[itemName];
 
     entry.sources?.forEach(src => {
 
+      // FARM NODE
+      if (src.type === "farm") {
+        const farmID = "FARM";
+        nodes.push({ id: farmID, type: "farm" });
+
+        links.push({ source: farmID, target: itemName, label: "farm" });
+      }
+
+      // CRAFT NODE (link from materials)
       if (src.type === "craft") {
         src.from.forEach(mat => {
-          links.push({ source: mat, target: item, label: "craft" });
+          links.push({ source: mat, target: itemName, label: "craft" });
         });
       }
 
+      // SHOP NODE
       if (src.type === "shop") {
-        const shopNode = "SHOP: " + src.shop;
-        nodes.push({ id: shopNode, type: "shop", currency: src.currency });
+        const shopID = "SHOP: " + src.shop;
+        nodes.push({
+          id: shopID,
+          type: "shop",
+          currency: src.currency
+        });
 
-        links.push({ source: shopNode, target: item, label: src.currency + " " + src.price });
+        links.push({
+          source: shopID,
+          target: itemName,
+          label: src.currency + " " + src.price
+        });
       }
-
-      if (src.type === "farm") {
-        const farmNode = "FARM";
-        nodes.push({ id: farmNode, type: "farm" });
-
-        links.push({ source: farmNode, target: item, label: "farm" });
-      }
-
     });
-
   });
 
-  // Remove old graph
+  // ❗ IMPORTANT: Deduplicate nodes by ID
+  nodes = Array.from(new Map(nodes.map(n => [n.id, n])).values());
+
+  // Reset SVG
   svg.selectAll("*").remove();
 
   // Force simulation
   const sim = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(120))
-    .force("charge", d3.forceManyBody().strength(-300))
-    .force("center", d3.forceCenter(width/2, height/2));
+    .force("link", d3.forceLink(links).id(d => d.id).distance(150))
+    .force("charge", d3.forceManyBody().strength(-350))
+    .force("center", d3.forceCenter(width / 2, height / 2));
 
-  // Draw lines
+  // Links
   const link = svg.append("g")
-    .attr("stroke", "#aaa")
+    .attr("stroke", "#999")
     .selectAll("line")
     .data(links)
     .enter()
-    .append("line");
+    .append("line")
+    .attr("stroke-width", 1.5);
 
-  // Draw nodes
+  // Nodes
   const node = svg.append("g")
     .selectAll("g")
     .data(nodes)
@@ -167,17 +178,12 @@ function buildGraph(data) {
     });
 
   node.append("text")
-    .attr("x", 0)
-    .attr("y", 4)
     .attr("text-anchor", "middle")
+    .attr("y", 4)
     .text(d => d.id);
 
-  // Show info on click
-  node.on("click", (event, d) => {
-    showInfo(d, items);
-  });
+  node.on("click", (event, n) => showInfo(n, items));
 
-  // Simulation update
   sim.on("tick", () => {
     link
       .attr("x1", d => d.source.x)
@@ -187,47 +193,42 @@ function buildGraph(data) {
 
     node.attr("transform", d => `translate(${d.x},${d.y})`);
   });
-
 }
 
 function showInfo(node, items) {
-  if (node.type === "item") {
-    const entry = items[node.id];
-    infoBox.style.display = "block";
-
-    let html = `<h3>${node.id}</h3>`;
-
-    html += `<strong>Sources:</strong><br>`;
-    entry.sources?.forEach(src => {
-      if (src.type === "farm") html += `• Farmable<br>`;
-      if (src.type === "craft") html += `• Craft from: ${src.from.join(", ")} (Cost: ${src.currency} ${src.price})<br>`;
-      if (src.type === "shop") html += `• Buy at ${src.shop} — ${src.price} ${src.currency}<br>`;
-    });
-
-    html += `<br><strong>Used In:</strong><br>`;
-    entry.used_in?.forEach(u => {
-      html += `• ${u}<br>`;
-    });
-
-    infoBox.innerHTML = html;
+  if (node.type !== "item") {
+    infoBox.style.display = "none";
+    return;
   }
+
+  const entry = items[node.id];
+  let html = `<h3>${node.id}</h3><strong>Sources:</strong><br>`;
+
+  entry.sources?.forEach(src => {
+    if (src.type === "farm") html += `• Farmable<br>`;
+    if (src.type === "craft") html += `• Craft from ${src.from.join(", ")} (Cost: ${src.currency} ${src.price})<br>`;
+    if (src.type === "shop") html += `• Buy at ${src.shop} — ${src.price} ${src.currency}<br>`;
+  });
+
+  html += `<br><strong>Used In:</strong><br>`;
+  entry.used_in?.forEach(u => html += `• ${u}<br>`);
+
+  infoBox.innerHTML = html;
+  infoBox.style.display = "block";
 }
 
 function drag(sim) {
   return d3.drag()
     .on("start", (event, d) => {
       if (!event.active) sim.alphaTarget(0.3).restart();
-      d.fx = d.x;
-      d.fy = d.y;
+      d.fx = d.x; d.fy = d.y;
     })
     .on("drag", (event, d) => {
-      d.fx = event.x;
-      d.fy = event.y;
+      d.fx = event.x; d.fy = event.y;
     })
     .on("end", (event, d) => {
       if (!event.active) sim.alphaTarget(0);
-      d.fx = null;
-      d.fy = null;
+      d.fx = null; d.fy = null;
     });
 }
 </script>
