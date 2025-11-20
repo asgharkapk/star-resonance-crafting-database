@@ -95,43 +95,46 @@ function buildGraph(data) {
   let nodes = [];
   let links = [];
 
-  // Create item nodes
+  // Step 1: Add all item nodes
   Object.keys(items).forEach(itemName => {
     nodes.push({ id: itemName, type: "item" });
   });
 
-  // Create edges & source nodes
+  // Step 2: Add shop nodes & farm node if needed
+  let shopsSet = new Set();
+  let farmNeeded = false;
+  Object.values(items).forEach(entry => {
+    entry.sources?.forEach(src => {
+      if (src.type === "farm") farmNeeded = true;
+      if (src.type === "shop") shopsSet.add(src.shop);
+    });
+  });
+
+  if (farmNeeded) nodes.push({ id: "FARM", type: "farm" });
+  shopsSet.forEach(shop => {
+    const currency = data.shops?.[shop]?.currency || "Unknown";
+    nodes.push({ id: "SHOP: " + shop, type: "shop", currency });
+  });
+
+  // Step 3: Deduplicate nodes (just in case)
+  nodes = Array.from(new Map(nodes.map(n => [n.id, n])).values());
+
+  // Step 4: Add links
   Object.keys(items).forEach(itemName => {
     const entry = items[itemName];
 
     entry.sources?.forEach(src => {
-
-      // FARM NODE
       if (src.type === "farm") {
-        const farmID = "FARM";
-        nodes.push({ id: farmID, type: "farm" });
-
-        links.push({ source: farmID, target: itemName, label: "farm" });
+        links.push({ source: "FARM", target: itemName, label: "farm" });
       }
-
-      // CRAFT NODE (link from materials)
       if (src.type === "craft") {
         src.from.forEach(mat => {
           links.push({ source: mat, target: itemName, label: "craft" });
         });
       }
-
-      // SHOP NODE
       if (src.type === "shop") {
-        const shopID = "SHOP: " + src.shop;
-        nodes.push({
-          id: shopID,
-          type: "shop",
-          currency: src.currency
-        });
-
         links.push({
-          source: shopID,
+          source: "SHOP: " + src.shop,
           target: itemName,
           label: src.currency + " " + src.price
         });
@@ -139,13 +142,10 @@ function buildGraph(data) {
     });
   });
 
-  // ❗ IMPORTANT: Deduplicate nodes by ID
-  nodes = Array.from(new Map(nodes.map(n => [n.id, n])).values());
-
-  // Reset SVG
+  // Step 5: Clear old graph
   svg.selectAll("*").remove();
 
-  // Force simulation
+  // Step 6: Force simulation
   const sim = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id(d => d.id).distance(150))
     .force("charge", d3.forceManyBody().strength(-350))
