@@ -1,0 +1,70 @@
+{
+  "items": {
+    "Beehive": {
+      "sources": [
+        { "type": "farm", "from": ["Bee"] },
+        { "type": "shop", "shop": "Homestead Shop", "price": 10, "currency": "H" },
+        { "type": "shop", "shop": "Exchange Shop", "price": 5, "currency": "Lb" },
+        { "type": "shop", "shop": "Trading Center", "price": 5, "currency": "L" }
+      ],
+      "used_in": ["Beeswax"]
+    },
+    "Beeswax": {
+      "sources": [
+        { "type": "craft", "from": ["Beehive", "Beehive", "Beehive"], "price": 0, "currency": "" }
+      ],
+      "used_in": ["Alchemy Lvl.1"]
+    },
+    "Alchemy Lvl.1": {
+      "sources": [
+        { "type": "craft", "from": ["Beeswax"], "price": 0, "currency": "" }
+      ],
+      "used_in": []
+    },
+    "Cotton": {
+      "sources": [
+        { "type": "farm", "from": ["Asteria Cotton"] },
+        { "type": "craft", "from": ["Botany Lvl.10"], "price": 0, "currency": "" }
+      ],
+      "used_in": ["Worsted Yarn"]
+    },
+    "Worsted Yarn": {
+      "sources": [
+        { "type": "craft", "from": ["Cotton", "Cotton", "Cotton"], "price": 0, "currency": "" },
+        { "type": "craft", "from": ["Weaving Lvl.25"], "price": 0, "currency": "" }
+      ],
+      "used_in": ["Light Shatters - Medium"]
+    },
+    "Light Shatters - Medium": {
+      "sources": [
+        { "type": "craft", "from": ["Worsted Yarn", "Worsted Yarn", "Worsted Yarn", "Luxury Canvas"], "price": 20, "currency": "F" }
+      ],
+      "used_in": []
+    },
+    "Luxury Canvas": {
+      "sources": [],
+      "used_in": ["Light Shatters - Medium"]
+    },
+    "Asteria Cotton": {
+      "sources": [],
+      "used_in": ["Cotton"]
+    },
+    "Bee": {
+      "sources": [],
+      "used_in": ["Beehive"]
+    },
+    "Botany Lvl.10": {
+      "sources": [],
+      "used_in": ["Cotton"]
+    },
+    "Weaving Lvl.25": {
+      "sources": [],
+      "used_in": ["Worsted Yarn"]
+    }
+  },
+  "shops": {
+    "Homestead Shop": { "currency": "H" },
+    "Exchange Shop": { "currency": "Lb" },
+    "Trading Center": { "currency": "L" }
+  }
+}
