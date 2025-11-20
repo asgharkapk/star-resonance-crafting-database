@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Recipe Dependency Tree</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f5f5f5;
+  }
+  #uploadBox {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+  }
+  #tree {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    white-space: pre;
+    font-family: Consolas, monospace;
+  }
+  .node {
+    margin-left: 20px;
+  }
+</style>
+</head>
+<body>
+<h2>Recipe Dependency Tree</h2>
+
+<div id="uploadBox">
+  <p><strong>Upload recipe JSON file:</strong></p>
+  <!-- Removed file upload; now data loads from API -->
+<div id="uploadBox">
+  <p><strong>Loading recipe data from server...</strong></p>
+</div>
+
+<div id="tree">Tree will appear here...</div>
+
+<script>
+// --- NEW ADVANCED DATA MODEL EXAMPLE ---
+// items: {
+//   "Iron Bar": {
+//      cost: { gold: 12, craft_energy: 3 },
+//      from: ["Iron Ore", "Coal"],
+//      shop: null, // or "Blacksmith", "Magic Shop", ...
+//      buy_cost: { gold: 30, crystals: 0 },
+//      farmable: true,
+//      craft_energy: 1,   // energy per craft
+//      used_in: ["Iron Sword"]
+//   }
+// }
+
+const API_URL = "/api/recipes";
+const tree = document.getElementById("tree");
+
+fetch(API_URL)
+  .then(res => res.json())
+  .then(data => {
+    initTree(data.items);
+  })
+  .catch(err => {
+    tree.textContent = "Error loading data: " + err;
+  });
+
+// ---------------- VISUAL FLOATING TREE RENDERER ----------------
+function initTree(items) {
+  tree.innerHTML = "";
+  const container = document.createElement("div");
+  container.style.position = "relative";
+  container.style.height = "2000px";
+  container.style.width = "2000px";
+  tree.appendChild(container);
+
+  // simple auto-layout grid
+  const keys = Object.keys(items);
+  const spacingX = 250;
+  const spacingY = 150;
+
+  const positions = {};
+  keys.forEach((name, i) => {
+    positions[name] = {
+      x: (i % 5) * spacingX,
+      y: Math.floor(i / 5) * spacingY
+    };
+  });
+
+  // create item nodes
+  keys.forEach(name => createNode(container, name, items[name], positions));
+
+  // draw connectors
+  keys.forEach(name => drawLinks(container, name, items[name], positions));
+}
+
+function createNode(parent, name, item, pos) {
+  const div = document.createElement("div");
+  div.style.position = "absolute";
+  div.style.left = pos.x + "px";
+  div.style.top = pos.y + "px";
+  div.style.padding = "10px 14px";
+  div.style.background = "#fff";
+  div.style.borderRadius = "10px";
+  div.style.boxShadow = "0 3px 8px rgba(0,0,0,0.2)";
+  div.style.cursor = "grab";
+
+  div.innerHTML = `<strong>${name}</strong><br>
+    Craft Cost: ${formatCost(item.cost)}<br>
+    Shop: ${item.shop || "None"}<br>
+    Buy: ${formatCost(item.buy_cost)}<br>
+    Farmable: ${item.farmable ? "Yes" : "No"}`;
+
+  // draggable floating node
+  div.onmousedown = e => startDrag(e, div);
+
+  parent.appendChild(div);
+}
+
+function drawLinks(parent, name, item, positions) {
+  if (!item.from) return;
+  item.from.forEach(src => {
+    const line = document.createElement("div");
+    line.style.position = "absolute";
+    line.style.background = "#444";
+    line.style.height = "2px";
+    line.style.transformOrigin = "0 0";
+
+    const p1 = positions[src];
+    const p2 = positions[name];
+
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const length = Math.sqrt(dx*dx + dy*dy);
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+    line.style.left = p1.x + "px";
+    line.style.top = p1.y + "px";
+    line.style.width = length + "px";
+    line.style.transform = `rotate(${angle}deg)`;
+
+    parent.appendChild(line);
+  });
+}
+
+function formatCost(costObj) {
+  if (!costObj) return "-";
+  return Object.entries(costObj)
+    .filter(([_, v]) => v > 0)
+    .map(([c, v]) => `${v} ${c}`)
+    .join(", ") || "-";
+}
+
+// ----------------- DRAGGING -----------------
+let dragTarget = null;
+let offsetX = 0;
+let offsetY = 0;
+
+function startDrag(e, element) {
+  dragTarget = element;
+  offsetX = e.offsetX;
+  offsetY = e.offsetY;
+  document.onmousemove = drag;
+  document.onmouseup = stopDrag;
+}
+
+function drag(e) {
+  if (!dragTarget) return;
+  dragTarget.style.left = (e.pageX - offsetX) + "px";
+  dragTarget.style.top = (e.pageY - offsetY) + "px";
+}
+
+function stopDrag() {
+  dragTarget = null;
+  document.onmousemove = null;
+  document.onmouseup = null;
+}
+</script>
+</body>
+</html>

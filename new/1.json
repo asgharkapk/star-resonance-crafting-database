@@ -1,0 +1,57 @@
+{
+  "items": {
+    "Iron Ore": {
+      "cost": 2,
+      "from": [],
+      "used_in": ["Iron Bar"]
+    },
+
+    "Coal": {
+      "cost": 1,
+      "from": [],
+      "used_in": ["Iron Bar"]
+    },
+
+    "Iron Bar": {
+      "cost": 12,
+      "from": ["Iron Ore", "Coal"],
+      "used_in": ["Iron Sword", "Shield Plate"]
+    },
+
+    "Wood": {
+      "cost": 1,
+      "from": [],
+      "used_in": ["Wooden Handle"]
+    },
+
+    "Wooden Handle": {
+      "cost": 4,
+      "from": ["Wood"],
+      "used_in": ["Iron Sword"]
+    },
+
+    "Leather": {
+      "cost": 3,
+      "from": [],
+      "used_in": ["Shield Grip"]
+    },
+
+    "Shield Grip": {
+      "cost": 10,
+      "from": ["Leather"],
+      "used_in": ["Shield Plate"]
+    },
+
+    "Shield Plate": {
+      "cost": 40,
+      "from": ["Iron Bar", "Shield Grip"],
+      "used_in": []
+    },
+
+    "Iron Sword": {
+      "cost": 75,
+      "from": ["Iron Bar", "Wooden Handle"],
+      "used_in": []
+    }
+  }
+}

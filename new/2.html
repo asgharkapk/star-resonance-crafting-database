@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Recipe Dependency Tree</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f5f5f5;
+  }
+  #uploadBox {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+  }
+  #tree {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    white-space: pre;
+    font-family: Consolas, monospace;
+  }
+  .node {
+    margin-left: 20px;
+  }
+</style>
+</head>
+<body>
+<h2>Recipe Dependency Tree</h2>
+
+<div id="uploadBox">
+  <p><strong>Upload recipe JSON file:</strong></p>
+  <!-- Removed file upload; now data loads from API -->
+<div id="uploadBox">
+  <p><strong>Loading recipe data from server...</strong></p>
+</div>
+
+<div id="tree">Tree will appear here...</div>
+
+<script>
+// Fetch recipe data from API endpoint
+// Example expected JSON structure remains the same as before
+// Change URL to your actual API
+const API_URL = "/api/recipes";
+
+fetch(API_URL)
+  .then(res => res.json())
+  .then(data => {
+      if (!data.items) {
+         tree.textContent = "Error: API returned invalid structure";
+         return;
+      }
+      tree.textContent = generateTree(data.items);
+  })
+  .catch(err => {
+      tree.textContent = "Error loading data from server: " + err;
+  });(file);
+});
+
+function generateTree(items) {
+  let output = "";
+
+  Object.keys(items).forEach(name => {
+    output += formatItem(name, items[name], 0);
+  });
+
+  return output;
+}
+
+function formatItem(name, item, level) {
+  const indent = "  ".repeat(level);
+  let str = `${indent}- ${name} (Cost: ${item.cost})\n`;
+
+  if (item.from && item.from.length > 0) {
+    str += `${indent}  From:\n`;
+    item.from.forEach(src => {
+      str += `${indent}    → ${src}\n`;
+    });
+  }
+
+  if (item.used_in && item.used_in.length > 0) {
+    str += `${indent}  Used In:\n`;
+    item.used_in.forEach(dst => {
+      str += `${indent}    → ${dst}\n`;
+    });
+  }
+
+  return str;
+}
+</script>
+</body>
+</html>

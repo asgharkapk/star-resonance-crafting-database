@@ -1,0 +1,13 @@
+{
+  "items": {
+    "Iron Bar": {
+      "cost": { "gold": 12, "craft_energy": 3 },
+      "from": ["Iron Ore", "Coal"],
+      "shop": "Blacksmith",
+      "buy_cost": { "gold": 30, "crystals": 0 },
+      "farmable": false,
+      "craft_energy": 1,
+      "used_in": ["Iron Sword"]
+    }
+  }
+}
