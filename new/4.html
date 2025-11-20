@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Floating Recipe Dependency Graph</title>
+
+<style>
+  body {
+    margin: 0;
+    background: #eef2f5;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+  }
+
+  #uploadBox {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 100;
+  }
+
+  #infoBox {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 280px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-size: 14px;
+    display: none;
+    z-index: 100;
+  }
+
+  #infoBox h3 {
+    margin-top: 0;
+  }
+
+  svg text {
+    pointer-events: none;
+    font-size: 12px;
+  }
+
+  .node circle {
+    stroke: #333;
+    stroke-width: 1.5px;
+    cursor: grab;
+  }
+</style>
+
+</head>
+<body>
+
+<div id="uploadBox">
+  <strong>Upload Recipe JSON:</strong><br>
+  <input type="file" id="fileInput" accept=".json">
+</div>
+
+<div id="infoBox"></div>
+
+<svg id="graph" width="100%" height="100%"></svg>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const svg = d3.select("#graph");
+const width = window.innerWidth;
+const height = window.innerHeight;
+
+const infoBox = document.getElementById("infoBox");
+
+document.getElementById("fileInput").addEventListener("change", handleFile);
+
+function handleFile() {
+  const file = this.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      buildGraph(data);
+    } catch (err) {
+      alert("Invalid JSON");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function buildGraph(data) {
+
+  const items = data.items;
+  const nodes = [];
+  const links = [];
+
+  // Build nodes
+  Object.keys(items).forEach(item => {
+    nodes.push({ id: item, type: "item" });
+  });
+
+  // Build links based on "sources"
+  Object.keys(items).forEach(item => {
+    const entry = items[item];
+
+    entry.sources?.forEach(src => {
+
+      if (src.type === "craft") {
+        src.from.forEach(mat => {
+          links.push({ source: mat, target: item, label: "craft" });
+        });
+      }
+
+      if (src.type === "shop") {
+        const shopNode = "SHOP: " + src.shop;
+        nodes.push({ id: shopNode, type: "shop", currency: src.currency });
+
+        links.push({ source: shopNode, target: item, label: src.currency + " " + src.price });
+      }
+
+      if (src.type === "farm") {
+        const farmNode = "FARM";
+        nodes.push({ id: farmNode, type: "farm" });
+
+        links.push({ source: farmNode, target: item, label: "farm" });
+      }
+
+    });
+
+  });
+
+  // Remove old graph
+  svg.selectAll("*").remove();
+
+  // Force simulation
+  const sim = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("center", d3.forceCenter(width/2, height/2));
+
+  // Draw lines
+  const link = svg.append("g")
+    .attr("stroke", "#aaa")
+    .selectAll("line")
+    .data(links)
+    .enter()
+    .append("line");
+
+  // Draw nodes
+  const node = svg.append("g")
+    .selectAll("g")
+    .data(nodes)
+    .enter()
+    .append("g")
+    .call(drag(sim));
+
+  node.append("circle")
+    .attr("r", 18)
+    .attr("fill", d => {
+      if (d.type === "item") return "#79a7ff";
+      if (d.type === "shop") return "#ffb347";
+      if (d.type === "farm") return "#8BC34A";
+      return "#ccc";
+    });
+
+  node.append("text")
+    .attr("x", 0)
+    .attr("y", 4)
+    .attr("text-anchor", "middle")
+    .text(d => d.id);
+
+  // Show info on click
+  node.on("click", (event, d) => {
+    showInfo(d, items);
+  });
+
+  // Simulation update
+  sim.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    node.attr("transform", d => `translate(${d.x},${d.y})`);
+  });
+
+}
+
+function showInfo(node, items) {
+  if (node.type === "item") {
+    const entry = items[node.id];
+    infoBox.style.display = "block";
+
+    let html = `<h3>${node.id}</h3>`;
+
+    html += `<strong>Sources:</strong><br>`;
+    entry.sources?.forEach(src => {
+      if (src.type === "farm") html += `• Farmable<br>`;
+      if (src.type === "craft") html += `• Craft from: ${src.from.join(", ")} (Cost: ${src.currency} ${src.price})<br>`;
+      if (src.type === "shop") html += `• Buy at ${src.shop} — ${src.price} ${src.currency}<br>`;
+    });
+
+    html += `<br><strong>Used In:</strong><br>`;
+    entry.used_in?.forEach(u => {
+      html += `• ${u}<br>`;
+    });
+
+    infoBox.innerHTML = html;
+  }
+}
+
+function drag(sim) {
+  return d3.drag()
+    .on("start", (event, d) => {
+      if (!event.active) sim.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    })
+    .on("drag", (event, d) => {
+      d.fx = event.x;
+      d.fy = event.y;
+    })
+    .on("end", (event, d) => {
+      if (!event.active) sim.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    });
+}
+</script>
+
+</body>
+</html>
