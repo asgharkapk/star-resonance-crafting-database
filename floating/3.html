@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Tree Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* Controls */
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button, input::file-selector-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #2980b9; }
+        
+        #help-text {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #ccc;
+            max-width: 300px;
+        }
+
+        /* Graph Container */
+        #viz-container {
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+        #viz-container:active { cursor: grabbing; }
+
+        /* Node Styling */
+        .node-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-radius: 8px;
+            box-sizing: border-box;
+            padding: 8px;
+            border: 2px solid #555;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.2s;
+            background: #333;
+        }
+        
+        .node-container:hover { transform: scale(1.1); z-index: 999; }
+
+        /* Rarities */
+        .rarity-common { border-color: #b0b0b0; }
+        .rarity-rare { border-color: #3498db; box-shadow: 0 0 5px #3498db; }
+        .rarity-epic { border-color: #9b59b6; box-shadow: 0 0 8px #9b59b6; }
+        .rarity-legendary { border-color: #f1c40f; box-shadow: 0 0 15px #f1c40f; background: linear-gradient(135deg, #333, #443300); }
+        .type-shop { border-color: #2ecc71; border-style: dashed; background: #1e2b22; }
+
+        /* Text */
+        .node-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; word-wrap: break-word; line-height: 1.2; }
+        .node-detail { font-size: 11px; color: #aaa; }
+        .node-craft-cost { color: #e74c3c; font-weight: bold; font-size: 11px; margin-top: 4px; border-top: 1px solid #555; padding-top: 2px; width: 100%; }
+
+        /* Links & Labels */
+        .link { fill: none; stroke: #666; stroke-width: 2px; }
+        .link.buy { stroke: #2ecc71; stroke-dasharray: 5,5; }
+        
+        .link-label-rect { fill: #222; opacity: 0.85; rx: 4; }
+        .link-label-text { font-size: 10px; fill: #fff; text-anchor: middle; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <input type="file" id="fileInput" accept=".json" />
+    <button onclick="loadExample()">Load Example Scenario</button>
+    <div id="help-text">Upload a JSON file or click Load Example.</div>
+</div>
+
+<div id="viz-container"></div>
+
+<script>
+    // ==========================================
+    // 1. JSON PARSER & DATA STRUCTURE
+    // ==========================================
+    
+    // We expect a clean JSON format from the user. 
+    // The code will parse "Items" and "Recipes" into Nodes and Links.
+    
+    function processDatabase(db) {
+        const nodes = [];
+        const links = [];
+        
+        // 1. Process Items/Shops into Nodes
+        db.items.forEach(item => {
+            nodes.push({
+                id: item.id,
+                name: item.name,
+                type: item.type || 'item', // item, shop, resource
+                rarity: item.rarity || 'common',
+                desc: item.desc || '',
+                craftCost: item.craftCost || null // The cost paid TO CRAFT THIS ITEM
+            });
+        });
+
+        // 2. Process Recipes/Shops into Links
+        // Link types: 'craft' (ingredients), 'buy' (from shop), 'gather' (from nature)
+        
+        db.recipes.forEach(recipe => {
+            // Handle "Buy" or "Gather" or "Craft" logic based on inputs
+            // A recipe connects Inputs -> Output
+            
+            recipe.inputs.forEach(input => {
+                let label = "";
+                
+                // Build label string based on quantity and cost
+                if (input.qty && input.qty > 1) label += `x${input.qty}`;
+                if (input.cost) label += (label ? " + " : "") + input.cost;
+                
+                // Add skill requirement to label if exists
+                if (recipe.req) label += `\n(${recipe.req})`;
+
+                links.push({
+                    source: input.id,
+                    target: recipe.output,
+                    type: recipe.type, // 'buy', 'craft', 'gather'
+                    label: label
+                });
+            });
+        });
+
+        return { nodes, links };
+    }
+
+    // ==========================================
+    // 2. EXAMPLE DATA GENERATOR
+    // ==========================================
+    function loadExample() {
+        const exampleDB = {
+            "items": [
+                // Animals / Resources
+                { "id": "bee", "name": "Bee", "type": "resource", "rarity": "common", "desc": "Common Animal" },
+                { "id": "asteria", "name": "Asteria Cotton", "type": "resource", "rarity": "common", "desc": "Wild Plant" },
+                
+                // Shops
+                { "id": "shop_home", "name": "Homestead Shop", "type": "shop" },
+                { "id": "shop_exch", "name": "Exchange Shop", "type": "shop" },
+                { "id": "shop_trade", "name": "Trading Center", "type": "shop" },
+
+                // Items
+                { "id": "beehive", "name": "Beehive", "type": "item", "rarity": "common" },
+                { "id": "beeswax", "name": "Beeswax", "type": "item", "rarity": "rare" },
+                { "id": "cotton", "name": "Cotton", "type": "item", "rarity": "epic" },
+                { "id": "yarn", "name": "Worsted Yarn", "type": "item", "rarity": "epic" },
+                { "id": "canvas", "name": "Luxury Canvas", "type": "item", "rarity": "epic" },
+                
+                // Final Legend
+                { "id": "shatters", "name": "Light Shatters - Medium", "type": "item", "rarity": "legendary", "craftCost": "20F" }
+            ],
+            "recipes": [
+                // Bee Logic
+                { "type": "gather", "inputs": [{ "id": "bee" }], "output": "beehive" }, // Bee -> Beehive
+                
+                // Shop Logic (Beehive)
+                { "type": "buy", "inputs": [{ "id": "shop_home", "cost": "10H" }], "output": "beehive" },
+                { "type": "buy", "inputs": [{ "id": "shop_exch", "cost": "5Lb" }], "output": "beehive" },
+                { "type": "buy", "inputs": [{ "id": "shop_trade", "cost": "5L" }], "output": "beehive" },
+
+                // Beeswax Craft
+                { 
+                    "type": "craft", 
+                    "req": "Alchemy Lv.1",
+                    "inputs": [{ "id": "beehive", "qty": 3 }], 
+                    "output": "beeswax" 
+                },
+
+                // Cotton Logic
+                {
+                    "type": "gather",
+                    "req": "Botany Lv.10",
+                    "inputs": [{ "id": "asteria" }],
+                    "output": "cotton"
+                },
+
+                // Yarn Logic
+                {
+                    "type": "craft",
+                    "req": "Weaving Lv.25",
+                    "inputs": [{ "id": "cotton", "qty": 3 }],
+                    "output": "yarn" // Implies 3 cotton -> 3 yarn, simplified link is 1-to-1 usually unless specified
+                },
+
+                // Final Legendary Craft
+                {
+                    "type": "craft",
+                    "inputs": [
+                        { "id": "yarn", "qty": 3 },
+                        { "id": "canvas", "qty": 1 }
+                    ],
+                    "output": "shatters"
+                    // Note: The "20F" cost is in the Item Definition (craftCost) above
+                }
+            ]
+        };
+        
+        renderTree(processDatabase(exampleDB));
+    }
+
+    // ==========================================
+    // 3. D3 VISUALIZATION ENGINE
+    // ==========================================
+    
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    let simulation, svg, g;
+
+    function initD3() {
+        d3.select("#viz-container").html(""); // Clear previous
+        
+        svg = d3.select("#viz-container")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .call(d3.zoom().on("zoom", (e) => g.attr("transform", e.transform)))
+            .on("dblclick.zoom", null);
+
+        g = svg.append("g");
+
+        // Arrow Markers
+        const defs = svg.append("defs");
+        
+        // Standard Craft Arrow
+        defs.append("marker")
+            .attr("id", "arrow-craft")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 60) // Offset from node center
+            .attr("refY", 0)
+            .attr("markerWidth", 6).attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#666");
+
+        // Buy Arrow
+        defs.append("marker")
+            .attr("id", "arrow-buy")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 60)
+            .attr("refY", 0)
+            .attr("markerWidth", 6).attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#2ecc71");
+    }
+
+    function renderTree(data) {
+        initD3();
+
+        // Force Simulation
+        simulation = d3.forceSimulation(data.nodes)
+            .force("link", d3.forceLink(data.links).id(d => d.id).distance(200))
+            .force("charge", d3.forceManyBody().strength(-1500))
+            .force("collide", d3.forceCollide(80))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("y", d3.forceY(0).strength(0.05)); // Gravity
+
+        // -- Links --
+        const linkGroup = g.append("g").attr("class", "links");
+        const link = linkGroup.selectAll("g")
+            .data(data.links)
+            .join("g");
+
+        const linkPath = link.append("path")
+            .attr("class", d => `link ${d.type}`)
+            .attr("marker-end", d => d.type === 'buy' ? "url(#arrow-buy)" : "url(#arrow-craft)");
+
+        // -- Link Labels --
+        const linkLabels = link.append("g");
+        
+        linkLabels.append("rect")
+            .attr("class", "link-label-rect");
+
+        const linkText = linkLabels.append("text")
+            .attr("class", "link-label-text")
+            .attr("dy", 3)
+            .text(d => d.label);
+
+        // Sizing link labels
+        linkText.each(function() {
+            const bbox = this.getBBox();
+            d3.select(this.parentNode).select("rect")
+                .attr("x", bbox.x - 4)
+                .attr("y", bbox.y - 4)
+                .attr("width", bbox.width + 8)
+                .attr("height", bbox.height + 8);
+        });
+
+        // -- Nodes --
+        const node = g.append("g")
+            .attr("class", "nodes")
+            .selectAll("foreignObject")
+            .data(data.nodes)
+            .join("foreignObject")
+            .attr("width", 120)
+            .attr("height", 100)
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        node.append("xhtml:div")
+            .attr("class", d => `node-container type-${d.type} rarity-${d.rarity}`)
+            .html(d => {
+                let html = `<div class="node-name">${d.name}</div>`;
+                if (d.desc) html += `<div class="node-detail">${d.desc}</div>`;
+                if (d.craftCost) html += `<div class="node-craft-cost">Cost: ${d.craftCost}</div>`;
+                return html;
+            });
+
+        // -- Tick --
+        simulation.on("tick", () => {
+            node
+                .attr("x", d => d.x - 60)
+                .attr("y", d => d.y - 50);
+
+            linkPath.attr("d", d => {
+                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+            });
+
+            linkLabels.attr("transform", d => {
+                // Find midpoint
+                const x = (d.source.x + d.target.x) / 2;
+                const y = (d.source.y + d.target.y) / 2;
+                return `translate(${x}, ${y})`;
+            });
+        });
+    }
+
+    // Drag Helpers
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+    }
+    function dragged(event, d) {
+        d.fx = event.x; d.fy = event.y;
+    }
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null; d.fy = null;
+    }
+
+    // File Upload Handler
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const json = JSON.parse(e.target.result);
+                const processed = processDatabase(json);
+                renderTree(processed);
+            } catch (err) {
+                alert("Invalid JSON File format");
+                console.error(err);
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    // Load initial empty or instructions
+    initD3();
+
+</script>
+</body>
+</html>
