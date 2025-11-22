@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe & Economy Tree</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #222;
+            color: white;
+            overflow: hidden;
+        }
+
+        #viz-container {
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+
+        #viz-container:active {
+            cursor: grabbing;
+        }
+
+        /* Node Styling */
+        .node-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-radius: 8px;
+            box-sizing: border-box;
+            padding: 5px;
+            border: 2px solid #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        
+        .node-container:hover {
+            transform: scale(1.05);
+            z-index: 100;
+        }
+
+        /* Type specific styling */
+        .type-shop { background: #4a4a4a; border-color: #888; }
+        .type-item { background: #2c3e50; border-color: #3498db; }
+        .type-final { background: #8e44ad; border-color: #e056fd; box-shadow: 0 0 15px #8e44ad; }
+        
+        /* Text Styling */
+        .node-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; word-wrap: break-word; }
+        .node-detail { font-size: 11px; color: #ddd; }
+        .craft-cost { color: #f1c40f; font-weight: bold; font-size: 11px; margin-top: 2px; }
+
+        /* Link Styling */
+        .link {
+            fill: none;
+            stroke: #777;
+            stroke-width: 2px;
+            transition: stroke 0.3s;
+        }
+        
+        .link-label-bg {
+            fill: #222;
+            opacity: 0.8;
+        }
+        
+        .link-text {
+            font-size: 11px;
+            fill: #fff;
+            text-anchor: middle;
+            font-weight: bold;
+        }
+
+        /* Arrows */
+        #arrow-buy { fill: #27ae60; }
+        #arrow-craft { fill: #777; }
+    </style>
+</head>
+<body>
+
+<div id="viz-container"></div>
+
+<script>
+    // ==========================================
+    // 1. CONFIGURATION & DATA
+    // ==========================================
+    
+    // Currencies definitions
+    const CURRENCIES = {
+        SHOP_A: { name: "Gold", color: "#f1c40f" }, // Common shop
+        SHOP_B: { name: "Void Shards", color: "#9b59b6" }, // Rare shop
+        SHOP_C: { name: "Honor Tokens", color: "#e74c3c" }, // PvP shop
+        CRAFT:  { name: "Mana", color: "#3498db" } // Paid per craft
+    };
+
+    const data = {
+        nodes: [
+            // --- SHOPS ---
+            { id: "shop_market", name: "Grand Market", type: "shop", currency: "SHOP_A" },
+            { id: "shop_void", name: "Void Trader", type: "shop", currency: "SHOP_B" },
+            { id: "shop_arena", name: "Arena Master", type: "shop", currency: "SHOP_C" },
+            
+            // --- ITEMS ---
+            // Level 1 (Raw)
+            { id: "iron", name: "Iron Ore", type: "item", desc: "Mined from rocks" },
+            { id: "wood", name: "Oak Wood", type: "item", desc: "Chopped from trees" },
+            { id: "flux", name: "Arcane Flux", type: "item", desc: "Unstable energy" },
+            { id: "badge", name: "Gladiator Badge", type: "item", desc: "Won in battle" },
+
+            // Level 2 (Intermediates)
+            { id: "bar", name: "Steel Bar", type: "item", craftCost: 10 },
+            { id: "hilt", name: "Reinforced Hilt", type: "item", craftCost: 15 },
+            { id: "gem", name: "Void Gem", type: "item", craftCost: 50 },
+
+            // Level 3 (Final)
+            { id: "sword", name: "Blade of Eternity", type: "final", craftCost: 500 }
+        ],
+        links: [
+            // Purchasing Relationships (Shop -> Item)
+            // Price is visually represented on the line
+            { source: "shop_market", target: "iron", label: "5 Gold", type: "buy" },
+            { source: "shop_market", target: "wood", label: "2 Gold", type: "buy" },
+            { source: "shop_void", target: "flux", label: "10 Shards", type: "buy" },
+            { source: "shop_arena", target: "badge", label: "1 Token", type: "buy" },
+
+            // Crafting Relationships (Ingredient -> Result)
+            // Quantity is represented on the line
+            { source: "iron", target: "bar", label: "x3", type: "craft" },
+            { source: "flux", target: "bar", label: "x1", type: "craft" }, // Requires flux to smelt
+            
+            { source: "wood", target: "hilt", label: "x5", type: "craft" },
+            { source: "badge", target: "hilt", label: "x2", type: "craft" },
+
+            { source: "flux", target: "gem", label: "x10", type: "craft" },
+
+            // Final Assembly
+            { source: "bar", target: "sword", label: "x2", type: "craft" },
+            { source: "hilt", target: "sword", label: "x1", type: "craft" },
+            { source: "gem", target: "sword", label: "x1", type: "craft" }
+        ]
+    };
+
+    // ==========================================
+    // 2. SETUP D3 VISUALIZATION
+    // ==========================================
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    // Zoom capabilities
+    const zoom = d3.zoom()
+        .scaleExtent([0.1, 4])
+        .on("zoom", (event) => {
+            g.attr("transform", event.transform);
+        });
+
+    const svg = d3.select("#viz-container")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .call(zoom)
+        .on("dblclick.zoom", null); // Disable double click zoom
+
+    // A group for all graphical elements
+    const g = svg.append("g");
+
+    // Define Arrow Markers
+    const defs = svg.append("defs");
+    
+    // Generic Arrow
+    defs.append("marker")
+        .attr("id", "arrow-craft")
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 55) // Distance from node center (adjust based on node width)
+        .attr("refY", 0)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", "#999");
+
+    // Buy Arrow (Green)
+    defs.append("marker")
+        .attr("id", "arrow-buy")
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 55)
+        .attr("refY", 0)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", "#27ae60");
+
+    // Force Simulation
+    const simulation = d3.forceSimulation(data.nodes)
+        .force("link", d3.forceLink(data.links).id(d => d.id).distance(150)) // Length of lines
+        .force("charge", d3.forceManyBody().strength(-2000)) // Nodes push apart
+        .force("center", d3.forceCenter(width / 2, height / 2)) // Pull to center
+        .force("y", d3.forceY(0).strength(0.05)) // Gentle gravity
+        .force("collide", d3.forceCollide(80)); // Prevent overlap
+
+    // ==========================================
+    // 3. DRAWING ELEMENTS
+    // ==========================================
+
+    // Links (Lines)
+    const linkGroup = g.append("g").attr("class", "links");
+    
+    const link = linkGroup.selectAll("line")
+        .data(data.links)
+        .join("g");
+
+    const linkPath = link.append("path")
+        .attr("class", "link")
+        .attr("stroke", d => d.type === 'buy' ? '#27ae60' : '#777')
+        .attr("marker-end", d => d.type === 'buy' ? "url(#arrow-buy)" : "url(#arrow-craft)");
+
+    // Link Labels (Background + Text)
+    const linkLabelGroup = link.append("g");
+
+    linkLabelGroup.append("rect")
+        .attr("class", "link-label-bg")
+        .attr("rx", 4)
+        .attr("ry", 4);
+
+    const linkText = linkLabelGroup.append("text")
+        .attr("class", "link-text")
+        .attr("dy", 4) // Center vertically
+        .text(d => d.label);
+
+    // Calculate label background size based on text
+    linkText.each(function() {
+        const bbox = this.getBBox();
+        const padding = 4;
+        d3.select(this.parentNode).select("rect")
+            .attr("x", bbox.x - padding)
+            .attr("y", bbox.y - padding)
+            .attr("width", bbox.width + (padding*2))
+            .attr("height", bbox.height + (padding*2));
+    });
+
+
+    // Nodes
+    const node = g.append("g")
+        .attr("class", "nodes")
+        .selectAll("foreignObject")
+        .data(data.nodes)
+        .join("foreignObject")
+        .attr("width", 100)
+        .attr("height", 80)
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
+
+    node.append("xhtml:div")
+        .attr("class", d => `node-container type-${d.type}`)
+        .html(d => {
+            let html = `<div class="node-name">${d.name}</div>`;
+            if (d.desc) html += `<div class="node-detail">${d.desc}</div>`;
+            
+            // Show crafting cost currency
+            if (d.craftCost) {
+                html += `<div class="craft-cost">🔨 ${d.craftCost} ${CURRENCIES.CRAFT.name}</div>`;
+            }
+            // Show shop specific currency icon/text
+            if (d.type === 'shop') {
+                const curr = CURRENCIES[d.currency];
+                html += `<div class="node-detail" style="color:${curr.color}">Accepts: ${curr.name}</div>`;
+            }
+            return html;
+        });
+
+    // ==========================================
+    // 4. ANIMATION LOOP
+    // ==========================================
+
+    simulation.on("tick", () => {
+        // Update Node Positions (Center the 100x80 box)
+        node
+            .attr("x", d => d.x - 50)
+            .attr("y", d => d.y - 40);
+
+        // Update Link Paths (Straight lines for now, could be curves)
+        linkPath.attr("d", d => {
+            return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+        });
+
+        // Update Label Positions (Midpoint of line)
+        linkLabelGroup.attr("transform", d => {
+            const midX = (d.source.x + d.target.x) / 2;
+            const midY = (d.source.y + d.target.y) / 2;
+            return `translate(${midX}, ${midY})`;
+        });
+    });
+
+    // ==========================================
+    // 5. HELPERS
+    // ==========================================
+
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
+
+</script>
+</body>
+</html>
