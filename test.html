@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Economy Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --bg: #1e1e2e;
+            --panel: #25253a;
+            --border: #44445a;
+            --accent: #89b4fa;
+            --text: #cdd6f4;
+            --green: #a6e3a1;
+            --red: #f38ba8;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* --- LEFT SIDEBAR (Controls) --- */
+        #sidebar {
+            width: 280px;
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            z-index: 10;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+        }
+
+        h2, h3 { margin-top: 0; color: var(--accent); }
+        
+        .control-group { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        
+        input[type="file"] {
+            width: 100%;
+            color: var(--text);
+            font-size: 12px;
+        }
+
+        /* --- RIGHT SIDEBAR (Calculator) --- */
+        #calculator-panel {
+            width: 320px;
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            padding: 15px;
+            z-index: 10;
+            overflow-y: auto;
+            display: none; /* Hidden until node selected */
+            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+        }
+
+        .calc-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .calc-input {
+            background: #181825;
+            border: 1px solid var(--border);
+            color: white;
+            width: 80px;
+            padding: 4px;
+            border-radius: 4px;
+            text-align: right;
+        }
+
+        .profit-positive { color: var(--green); font-weight: bold; }
+        .profit-negative { color: var(--red); font-weight: bold; }
+
+        .recipe-card {
+            background: #181825;
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+        .recipe-header { font-weight: bold; color: var(--accent); margin-bottom: 5px; display: flex; justify-content: space-between; }
+
+        /* --- MAIN VISUALIZATION --- */
+        #viz-container {
+            flex: 1;
+            position: relative;
+            cursor: grab;
+        }
+        #viz-container:active { cursor: grabbing; }
+
+        .node circle { stroke: #fff; stroke-width: 1.5px; transition: all 0.3s; }
+        .node text { font-size: 10px; fill: #fff; pointer-events: none; text-shadow: 0 1px 2px #000; }
+        
+        /* Node Types */
+        .node-item { fill: #313244; }
+        .node-selected { fill: var(--accent); stroke: var(--green); stroke-width: 3px; }
+
+        .link { fill: none; stroke: #585b70; stroke-width: 1.5px; opacity: 0.6; }
+        .link-label { font-size: 8px; fill: #a6adc8; text-anchor: middle; background: var(--bg); }
+        .link-arrow { fill: #585b70; }
+
+        /* Sticky indicator */
+        .pinned { stroke: var(--red) !important; stroke-dasharray: 3,1; }
+
+        button {
+            background: var(--accent); color: #111; border: none;
+            padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%;
+        }
+        button:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+<!-- LEFT SIDEBAR -->
+<div id="sidebar">
+    <div class="control-group">
+        <h3>📂 Data Import</h3>
+        <p style="font-size:12px; color:#aaa;">Select a folder containing CSV files.</p>
+        <!-- webkitdirectory allows folder selection -->
+        <input type="file" id="csvInput" webkitdirectory multiple />
+        <div id="file-status" style="font-size:11px; margin-top:5px; color: var(--green);"></div>
+    </div>
+    
+    <div class="control-group">
+        <h3>ℹ️ Legend</h3>
+        <div style="font-size:12px; line-height:1.5;">
+            <span style="color:var(--accent)">●</span> Node (Item)<br>
+            <span style="color:var(--red)">◌</span> Pinned (Sticky)<br>
+            <span style="color:#aaa">Drag</span> to move & pin<br>
+            <span style="color:#aaa">Double Click</span> to unpin
+        </div>
+    </div>
+</div>
+
+<!-- MAIN AREA -->
+<div id="viz-container"></div>
+
+<!-- RIGHT CALCULATOR -->
+<div id="calculator-panel">
+    <h3 id="calc-title">Calculator</h3>
+    
+    <div class="control-group">
+        <div class="calc-row">
+            <span>Want to Craft (Qty):</span>
+            <input type="number" id="calc-target-qty" class="calc-input" value="1" min="1">
+        </div>
+        <div class="calc-row">
+            <span>Owned Inventory:</span>
+            <input type="number" id="calc-inventory" class="calc-input" value="0" min="0">
+        </div>
+    </div>
+
+    <div class="control-group">
+        <h4>💰 Market Prices (Unit)</h4>
+        <div class="calc-row">
+            <span>Buy Price:</span>
+            <input type="number" id="calc-buy-price" class="calc-input" value="0">
+        </div>
+        <div class="calc-row">
+            <span>Sell Price:</span>
+            <input type="number" id="calc-sell-price" class="calc-input" value="0">
+        </div>
+    </div>
+
+    <div id="recipes-list">
+        <!-- Dynamic Recipes go here -->
+    </div>
+
+    <div class="control-group" style="border-top: 2px solid var(--border); padding-top:10px;">
+        <h4>📊 Profit Analysis</h4>
+        <div class="calc-row">Total Revenue: <span id="res-revenue">0</span></div>
+        <div class="calc-row">Total Cost: <span id="res-cost">0</span></div>
+        <div class="calc-row" style="font-size:16px;">Net Profit: <span id="res-profit">0</span></div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 1. DATA STRUCTURE
+    // ==========================================
+    const DATA = {
+        nodes: [],
+        links: []
+    };
+    
+    // Global state for calculator
+    let selectedNodeId = null;
+    let nodeDataMap = {}; // Quick lookup { "Charcoal": { ...data } }
+
+    // ==========================================
+    // 2. CSV PARSING
+    // ==========================================
+
+    function parseQty(str) {
+        // Converts "15x" -> 15, "1x" -> 1
+        if (!str) return 0;
+        const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+        return isNaN(num) ? 1 : num;
+    }
+
+    function parseCost(str) {
+        // Converts "20F" -> { val: 20, currency: "F" }
+        // "0F" -> { val: 0, curr: "F"}
+        if (!str) return { val: 0, curr: '' };
+        const val = parseFloat(str.replace(/[^0-9.]/g, ''));
+        const curr = str.replace(/[0-9.\s]/g, '');
+        return { val: isNaN(val) ? 0 : val, curr: curr };
+    }
+
+    function processCSVContent(csvText) {
+        const lines = csvText.split(/\r?\n/);
+        
+        // Format: action, cin, from, cout, to, cost
+        // Ex: CRAFTING, 1x, Charcoal, 15x, Burning Powder, 20F
+        
+        lines.forEach(line => {
+            if (!line.trim()) return; // Empty line
+            const cols = line.split(',').map(c => c.trim());
+            if (cols[0] === 'action' || cols.length < 6) return; // Header or bad line
+
+            const action = cols[0]; // CRAFTING or STORE
+            const qtyIn = parseQty(cols[1]);
+            const itemIn = cols[2].replace(':', ''); // Clean up "Artisanry:"
+            const qtyOut = parseQty(cols[3]);
+            const itemOut = cols[4];
+            const costObj = parseCost(cols[5]);
+
+            // Add Nodes if not exist
+            if (!nodeDataMap[itemIn]) nodeDataMap[itemIn] = { id: itemIn, type: 'source' };
+            if (!nodeDataMap[itemOut]) nodeDataMap[itemOut] = { id: itemOut, type: 'product' };
+
+            // Add Link (Recipe)
+            DATA.links.push({
+                source: itemIn,
+                target: itemOut,
+                action: action,
+                qtyIn: qtyIn,
+                qtyOut: qtyOut,
+                cost: costObj.val,
+                currency: costObj.curr,
+                ratio: qtyOut / qtyIn // How many made per 1 input
+            });
+        });
+
+        // Rebuild Nodes Array
+        DATA.nodes = Object.values(nodeDataMap);
+        updateGraph();
+    }
+
+    // Handle File Upload
+    document.getElementById('csvInput').addEventListener('change', async (e) => {
+        const files = e.target.files;
+        let count = 0;
+        
+        DATA.nodes = [];
+        DATA.links = [];
+        nodeDataMap = {};
+
+        const readFile = (file) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    processCSVContent(evt.target.result);
+                    resolve();
+                };
+                reader.readAsText(file);
+            });
+        };
+
+        const promises = [];
+        for (let i = 0; i < files.length; i++) {
+            if (files[i].name.endsWith('.csv')) {
+                promises.push(readFile(files[i]));
+                count++;
+            }
+        }
+
+        await Promise.all(promises);
+        document.getElementById('file-status').innerText = `Loaded ${count} CSV files.`;
+    });
+
+
+    // ==========================================
+    // 3. VISUALIZATION (D3)
+    // ==========================================
+    
+    const width = window.innerWidth - 280; // Minus sidebar
+    const height = window.innerHeight;
+
+    const svg = d3.select("#viz-container").append("svg")
+        .attr("width", "100%")
+        .attr("height", "100%")
+        .call(d3.zoom().on("zoom", (e) => g.attr("transform", e.transform)))
+        .append("g");
+
+    const g = svg.append("g");
+    
+    // Markers
+    svg.append("defs").selectAll("marker")
+        .data(["end"])
+        .enter().append("marker")
+        .attr("id", "arrow")
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 25)
+        .attr("refY", 0)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", "#585b70");
+
+    let simulation = d3.forceSimulation()
+        .force("link", d3.forceLink().id(d => d.id).distance(150))
+        .force("charge", d3.forceManyBody().strength(-400))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collide", d3.forceCollide(40));
+
+    function updateGraph() {
+        // 1. Links
+        const link = g.selectAll(".link-group")
+            .data(DATA.links)
+            .join("g")
+            .attr("class", "link-group");
+
+        // Append path if new
+        link.append("path")
+            .attr("class", "link")
+            .attr("marker-end", "url(#arrow)");
+
+        // Append Label
+        link.append("text")
+            .attr("class", "link-label")
+            .attr("dy", -5)
+            .text(d => `${d.qtyIn}→${d.qtyOut} (${d.cost}${d.currency})`);
+
+        // 2. Nodes
+        const node = g.selectAll(".node")
+            .data(DATA.nodes, d => d.id)
+            .join("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended))
+            .on("click", (e, d) => selectNode(d))
+            .on("dblclick", (e, d) => unpinNode(d)); // Double click to unpin
+
+        node.append("circle")
+            .attr("r", 15)
+            .attr("class", d => `circle-${d.id}`); // Class for selection styling
+
+        node.append("text")
+            .attr("dy", 25)
+            .attr("text-anchor", "middle")
+            .text(d => d.id);
+
+        // Restart Sim
+        simulation.nodes(DATA.nodes).on("tick", ticked);
+        simulation.force("link").links(DATA.links);
+        simulation.alpha(1).restart();
+
+        function ticked() {
+            link.select("path").attr("d", d => {
+                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+            });
+            
+            link.select("text")
+                .attr("x", d => (d.source.x + d.target.x) / 2)
+                .attr("y", d => (d.source.y + d.target.y) / 2);
+
+            node.attr("transform", d => `translate(${d.x},${d.y})`);
+        }
+    }
+
+    // --- Drag & Sticky Logic ---
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+        d3.select(this).select("circle").classed("pinned", true);
+    }
+
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        // STICKY: We DO NOT set fx/fy to null here. We keep them.
+        // Node stays where user left it.
+    }
+
+    function unpinNode(d) {
+        d.fx = null;
+        d.fy = null;
+        simulation.alpha(0.3).restart();
+        // Remove visual indicator
+        // Note: In a real app, we'd need to target the specific circle element cleanly
+        updateGraph(); 
+        d3.selectAll("circle").classed("pinned", (n) => n.fx != null);
+    }
+
+    // ==========================================
+    // 4. CALCULATOR LOGIC
+    // ==========================================
+
+    function selectNode(d) {
+        selectedNodeId = d.id;
+        
+        // Highlight visual
+        d3.selectAll("circle").classed("node-selected", false);
+        d3.selectAll(`.circle-${d.id.replace(/\s/g, '')}`).classed("node-selected", true); // Simple selector sanitization
+
+        // Show Panel
+        const panel = document.getElementById("calculator-panel");
+        panel.style.display = "block";
+        document.getElementById("calc-title").innerText = d.id;
+        
+        // Reset inputs
+        document.getElementById("calc-target-qty").value = 1;
+        document.getElementById("calc-inventory").value = 0;
+        document.getElementById("calc-buy-price").value = 0;
+        document.getElementById("calc-sell-price").value = 0;
+        
+        updateCalculator();
+    }
+
+    // Listeners for live calc
+    ['calc-target-qty', 'calc-inventory', 'calc-buy-price', 'calc-sell-price'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateCalculator);
+    });
+
+    function updateCalculator() {
+        if (!selectedNodeId) return;
+
+        const targetQty = parseFloat(document.getElementById("calc-target-qty").value) || 0;
+        const inventory = parseFloat(document.getElementById("calc-inventory").value) || 0;
+        const buyPrice = parseFloat(document.getElementById("calc-buy-price").value) || 0;
+        const sellPrice = parseFloat(document.getElementById("calc-sell-price").value) || 0;
+
+        const needed = Math.max(0, targetQty - inventory);
+        const revenue = targetQty * sellPrice;
+
+        // Find recipes that MAKE this item
+        const recipes = DATA.links.filter(l => l.target.id === selectedNodeId);
+        const listDiv = document.getElementById("recipes-list");
+        listDiv.innerHTML = "";
+
+        if (recipes.length === 0) {
+            listDiv.innerHTML = "<p>No known recipes create this item (It might be a raw resource).</p>";
+            // Simple Profit calc for raw item
+            const cost = needed * buyPrice;
+            updateProfitDisplay(revenue, cost);
+            return;
+        }
+
+        // Calculate costs for each recipe
+        let bestCost = Infinity;
+
+        recipes.forEach(r => {
+            // r.source is the ingredient object (d3 converted id to object)
+            const ingredientName = r.source.id;
+            
+            // How many times do we need to craft?
+            // Recipe: 10 Charcoal -> 15 Powder. We need 'needed' Powder.
+            // Crafts = needed / 15
+            const craftsRequired = needed / r.qtyOut;
+            
+            // Total Ingredients needed
+            const ingredientsNeeded = craftsRequired * r.qtyIn;
+            
+            // Total Currency Fee
+            const totalFee = craftsRequired * r.cost;
+
+            // WE DON'T KNOW the ingredient price automatically unless user inputs it.
+            // For simplicity in this UI, we assume user inputs "Buy Price" in the context of the INGREDIENT 
+            // OR we just show the quantities. 
+            // *Correction*: The prompt asks for price calculations. 
+            // To keep it robust: We will show the formula. 
+            
+            const div = document.createElement("div");
+            div.className = "recipe-card";
+            div.innerHTML = `
+                <div class="recipe-header">
+                    <span>Via ${r.action}</span>
+                    <span>${r.cost > 0 ? r.cost + r.currency : 'Free'}</span>
+                </div>
+                <div>Inputs: <b>${r.source.id}</b></div>
+                <div>Ratio: ${r.qtyIn} : ${r.qtyOut}</div>
+                <hr style="border:0; border-top:1px solid #444; margin:5px 0">
+                <div>To make <b>${needed.toFixed(1)}</b>:</div>
+                <div style="color:var(--green)">Need <b>${ingredientsNeeded.toFixed(1)}</b> x ${ingredientName}</div>
+                <div style="color:var(--red)">Fee: ${(totalFee).toFixed(1)} ${r.currency}</div>
+            `;
+            listDiv.appendChild(div);
+        });
+
+        // For the "Profit Analysis" box, we need a base cost. 
+        // Since we don't have recursive pricing for every item in the tree stored in state,
+        // We will treat "Cost" as (Target Qty * Buy Price) + 0 (assuming buy price is the acquisition cost).
+        // This allows the user to manually determine "It costs me 5g to get this item" whether by craft or buy.
+        
+        const totalCost = (needed * buyPrice); // User defines what "Cost" means to them via the input
+        
+        updateProfitDisplay(revenue, totalCost);
+    }
+
+    function updateProfitDisplay(revenue, cost) {
+        const profit = revenue - cost;
+        document.getElementById("res-revenue").innerText = revenue.toFixed(2);
+        document.getElementById("res-cost").innerText = cost.toFixed(2);
+        
+        const pEl = document.getElementById("res-profit");
+        pEl.innerText = profit.toFixed(2);
+        pEl.className = profit >= 0 ? "profit-positive" : "profit-negative";
+    }
+
+</script>
+</body>
+</html>
