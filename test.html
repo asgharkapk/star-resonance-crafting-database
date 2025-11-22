@@ -3,529 +3,578 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recipe Economy Visualizer</title>
+    <title>Advanced Economy Visualizer</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         :root {
-            --bg: #1e1e2e;
-            --panel: #25253a;
-            --border: #44445a;
-            --accent: #89b4fa;
-            --text: #cdd6f4;
-            --green: #a6e3a1;
-            --red: #f38ba8;
+            --bg: #111;
+            --panel: rgba(20, 20, 20, 0.95);
+            --border: #444;
+            --accent: #00d2ff;
+            --text: #eee;
+            --money: #ffd700; /* Gold/LB */
+            --labor: #ff6b6b; /* F/Labor */
+            --token: #adff2f; /* H/Tokens */
         }
 
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            overflow: hidden;
-            display: flex;
-            height: 100vh;
-        }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; display: flex; height: 100vh; }
 
-        /* --- LEFT SIDEBAR (Controls) --- */
-        #sidebar {
-            width: 280px;
-            background: var(--panel);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            padding: 15px;
-            z-index: 10;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+        /* --- LEFT CONTROLS --- */
+        #controls {
+            width: 250px; padding: 15px; background: var(--panel);
+            border-right: 1px solid var(--border); z-index: 10;
+            display: flex; flex-direction: column; gap: 15px;
         }
-
-        h2, h3 { margin-top: 0; color: var(--accent); }
         
-        .control-group { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        h2 { margin: 0 0 10px 0; font-size: 18px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 5px; }
         
-        input[type="file"] {
-            width: 100%;
-            color: var(--text);
-            font-size: 12px;
-        }
+        .btn-group { display: flex; flex-direction: column; gap: 5px; }
+        
+        input[type="file"] { font-size: 12px; color: #aaa; }
+        
+        .stat-box { font-size: 12px; color: #888; }
 
-        /* --- RIGHT SIDEBAR (Calculator) --- */
-        #calculator-panel {
-            width: 320px;
-            background: var(--panel);
+        /* --- GRAPH AREA --- */
+        #viz { flex: 1; position: relative; cursor: grab; }
+        #viz:active { cursor: grabbing; }
+
+        /* Node Styling (First Design) */
+        .node-container {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+            border-radius: 8px; padding: 5px; box-sizing: border-box;
+            border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,210,255, 0.2);
+            background: rgba(40,40,40,0.9); transition: transform 0.2s;
+        }
+        .node-container:hover { transform: scale(1.1); z-index: 100; border-color: var(--accent); }
+        
+        .node-name { font-weight: bold; font-size: 12px; word-wrap: break-word; }
+        .node-detail { font-size: 10px; color: #ccc; margin-top: 2px; }
+
+        /* Node Colors */
+        .type-source { border-color: #777; background: #222; }
+        .type-product { border-color: var(--accent); background: #1e2d35; }
+
+        /* Lines */
+        .link { fill: none; stroke: #555; stroke-width: 1.5px; }
+        .link-label-bg { fill: #111; opacity: 0.8; }
+        .link-text { font-size: 9px; fill: #ccc; text-anchor: middle; }
+
+        /* --- RIGHT SIDEBAR (ADVANCED CALCULATOR) --- */
+        #calculator {
+            width: 400px; background: var(--panel);
             border-left: 1px solid var(--border);
-            padding: 15px;
-            z-index: 10;
-            overflow-y: auto;
-            display: none; /* Hidden until node selected */
-            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column;
+            z-index: 20;
+            transition: transform 0.3s;
+            transform: translateX(100%); /* Hidden by default */
+            position: absolute; right: 0; top: 0; bottom: 0;
         }
+        #calculator.open { transform: translateX(0); }
 
-        .calc-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            font-size: 13px;
-        }
+        .calc-header { padding: 15px; background: #222; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .close-btn { cursor: pointer; font-weight: bold; color: #ff6b6b; }
 
-        .calc-input {
-            background: #181825;
-            border: 1px solid var(--border);
-            color: white;
-            width: 80px;
-            padding: 4px;
-            border-radius: 4px;
-            text-align: right;
-        }
+        .calc-body { flex: 1; overflow-y: auto; padding: 15px; }
 
-        .profit-positive { color: var(--green); font-weight: bold; }
-        .profit-negative { color: var(--red); font-weight: bold; }
-
-        .recipe-card {
-            background: #181825;
-            border: 1px solid var(--border);
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            font-size: 12px;
-        }
-        .recipe-header { font-weight: bold; color: var(--accent); margin-bottom: 5px; display: flex; justify-content: space-between; }
-
-        /* --- MAIN VISUALIZATION --- */
-        #viz-container {
-            flex: 1;
-            position: relative;
-            cursor: grab;
-        }
-        #viz-container:active { cursor: grabbing; }
-
-        .node circle { stroke: #fff; stroke-width: 1.5px; transition: all 0.3s; }
-        .node text { font-size: 10px; fill: #fff; pointer-events: none; text-shadow: 0 1px 2px #000; }
+        /* Calculation Tree CSS */
+        .calc-row { margin-bottom: 15px; border-left: 2px solid #444; padding-left: 10px; position: relative; }
+        .calc-row.depth-0 { border: none; padding: 0; }
         
-        /* Node Types */
-        .node-item { fill: #313244; }
-        .node-selected { fill: var(--accent); stroke: var(--green); stroke-width: 3px; }
+        .row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .item-title { font-weight: bold; color: var(--accent); font-size: 14px; }
+        
+        .strategy-select { background: #333; color: white; border: 1px solid #555; padding: 2px; font-size: 11px; border-radius: 3px; }
+        
+        .inputs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; color: #aaa; margin-bottom: 5px; }
+        .input-group input { width: 100%; background: #111; border: 1px solid #444; color: white; text-align: right; padding: 3px; }
 
-        .link { fill: none; stroke: #585b70; stroke-width: 1.5px; opacity: 0.6; }
-        .link-label { font-size: 8px; fill: #a6adc8; text-anchor: middle; background: var(--bg); }
-        .link-arrow { fill: #585b70; }
+        .sub-ingredients { margin-left: 10px; display: none; } /* Hidden if Buying */
+        .sub-ingredients.show { display: block; }
 
-        /* Sticky indicator */
-        .pinned { stroke: var(--red) !important; stroke-dasharray: 3,1; }
+        .cost-display { font-size: 11px; text-align: right; color: #fff; padding-top: 2px; border-top: 1px dashed #333; }
+        .currency-lb { color: var(--money); }
+        .currency-f { color: var(--labor); }
+        .currency-h { color: var(--token); }
 
-        button {
-            background: var(--accent); color: #111; border: none;
-            padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%;
-        }
-        button:hover { opacity: 0.9; }
+        /* Sticky Summary Footer */
+        .calc-footer { padding: 15px; background: #000; border-top: 1px solid var(--border); font-size: 13px; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .profit-val { font-size: 18px; font-weight: bold; }
+        .profit-pos { color: #4cd137; } 
+        .profit-neg { color: #ff6b6b; }
+
     </style>
 </head>
 <body>
 
 <!-- LEFT SIDEBAR -->
-<div id="sidebar">
-    <div class="control-group">
-        <h3>📂 Data Import</h3>
-        <p style="font-size:12px; color:#aaa;">Select a folder containing CSV files.</p>
-        <!-- webkitdirectory allows folder selection -->
-        <input type="file" id="csvInput" webkitdirectory multiple />
-        <div id="file-status" style="font-size:11px; margin-top:5px; color: var(--green);"></div>
+<div id="controls">
+    <h2>Data Source</h2>
+    <div class="stat-box">
+        Select folder containing CSVs.<br>
+        (Includes subfolders automatically)
     </div>
+    <input type="file" id="dirInput" webkitdirectory multiple />
+    <div id="loadStatus" class="stat-box" style="color: var(--accent)"></div>
     
-    <div class="control-group">
-        <h3>ℹ️ Legend</h3>
-        <div style="font-size:12px; line-height:1.5;">
-            <span style="color:var(--accent)">●</span> Node (Item)<br>
-            <span style="color:var(--red)">◌</span> Pinned (Sticky)<br>
-            <span style="color:#aaa">Drag</span> to move & pin<br>
-            <span style="color:#aaa">Double Click</span> to unpin
-        </div>
+    <div style="margin-top: 20px; font-size: 11px; color: #666;">
+        <b>How to use:</b><br>
+        1. Load Data.<br>
+        2. Click a Final Item node.<br>
+        3. Use the Calculator sidebar.<br>
+        4. Toggle "Craft" vs "Buy" for components.
     </div>
 </div>
 
-<!-- MAIN AREA -->
-<div id="viz-container"></div>
+<!-- MAIN GRAPH -->
+<div id="viz"></div>
 
 <!-- RIGHT CALCULATOR -->
-<div id="calculator-panel">
-    <h3 id="calc-title">Calculator</h3>
-    
-    <div class="control-group">
-        <div class="calc-row">
-            <span>Want to Craft (Qty):</span>
-            <input type="number" id="calc-target-qty" class="calc-input" value="1" min="1">
-        </div>
-        <div class="calc-row">
-            <span>Owned Inventory:</span>
-            <input type="number" id="calc-inventory" class="calc-input" value="0" min="0">
-        </div>
+<div id="calculator">
+    <div class="calc-header">
+        <span id="calc-item-name">Item Calculator</span>
+        <span class="close-btn" onclick="toggleCalc(false)">✕</span>
     </div>
-
-    <div class="control-group">
-        <h4>💰 Market Prices (Unit)</h4>
-        <div class="calc-row">
-            <span>Buy Price:</span>
-            <input type="number" id="calc-buy-price" class="calc-input" value="0">
-        </div>
-        <div class="calc-row">
-            <span>Sell Price:</span>
-            <input type="number" id="calc-sell-price" class="calc-input" value="0">
-        </div>
+    <div class="calc-body" id="calc-content">
+        <!-- Recursive Tree generated here -->
     </div>
-
-    <div id="recipes-list">
-        <!-- Dynamic Recipes go here -->
-    </div>
-
-    <div class="control-group" style="border-top: 2px solid var(--border); padding-top:10px;">
-        <h4>📊 Profit Analysis</h4>
-        <div class="calc-row">Total Revenue: <span id="res-revenue">0</span></div>
-        <div class="calc-row">Total Cost: <span id="res-cost">0</span></div>
-        <div class="calc-row" style="font-size:16px;">Net Profit: <span id="res-profit">0</span></div>
+    <div class="calc-footer">
+        <div class="summary-row">
+            <span>Total Sell Value:</span>
+            <span id="sum-revenue" class="currency-lb">0 LB</span>
+        </div>
+        <div class="summary-row">
+            <span>Total Expenses:</span>
+            <span id="sum-expense-lb" class="currency-lb">0 LB</span>
+        </div>
+        <div class="summary-row">
+            <span>Other Costs:</span>
+            <span>
+                <span id="sum-expense-f" class="currency-f">0 F</span> | 
+                <span id="sum-expense-h" class="currency-h">0 H</span>
+            </span>
+        </div>
+        <div style="border-top: 1px solid #333; margin: 5px 0;"></div>
+        <div class="summary-row" style="align-items: center;">
+            <span>NET PROFIT:</span>
+            <span id="sum-profit" class="profit-val">0</span>
+        </div>
     </div>
 </div>
 
 <script>
     // ==========================================
-    // 1. DATA STRUCTURE
+    // 1. DATA ENGINE
     // ==========================================
-    const DATA = {
-        nodes: [],
-        links: []
+    const DB = {
+        nodes: {},   // Map: "Ruby" -> { id, type }
+        recipes: [], // Array: { source, target, qtyIn, qtyOut, cost, currency, action }
+        
+        // Lookup Map for Calculator: "Ruby" -> [Recipe1, Recipe2]
+        recipesByTarget: {} 
     };
-    
-    // Global state for calculator
-    let selectedNodeId = null;
-    let nodeDataMap = {}; // Quick lookup { "Charcoal": { ...data } }
 
-    // ==========================================
-    // 2. CSV PARSING
-    // ==========================================
+    // To prevent duplicates
+    const recipeHash = new Set();
 
-    function parseQty(str) {
-        // Converts "15x" -> 15, "1x" -> 1
-        if (!str) return 0;
-        const num = parseFloat(str.replace(/[^0-9.]/g, ''));
-        return isNaN(num) ? 1 : num;
-    }
-
-    function parseCost(str) {
-        // Converts "20F" -> { val: 20, currency: "F" }
-        // "0F" -> { val: 0, curr: "F"}
-        if (!str) return { val: 0, curr: '' };
+    // --- CSV Parser ---
+    function parseCurrency(str) {
+        // Examples: "200LB", "20F", "220H", "0F"
+        if (!str) return { val: 0, type: '' };
         const val = parseFloat(str.replace(/[^0-9.]/g, ''));
-        const curr = str.replace(/[0-9.\s]/g, '');
-        return { val: isNaN(val) ? 0 : val, curr: curr };
+        let type = str.replace(/[0-9.\s]/g, '').toUpperCase();
+        // Normalize currency names
+        if(type === '') type = 'LB'; 
+        return { val: isNaN(val) ? 0 : val, type: type };
     }
 
-    function processCSVContent(csvText) {
-        const lines = csvText.split(/\r?\n/);
-        
-        // Format: action, cin, from, cout, to, cost
-        // Ex: CRAFTING, 1x, Charcoal, 15x, Burning Powder, 20F
-        
+    function processCSV(text) {
+        const lines = text.split(/\r?\n/);
         lines.forEach(line => {
-            if (!line.trim()) return; // Empty line
+            if (!line.trim() || line.startsWith('action')) return;
+            
             const cols = line.split(',').map(c => c.trim());
-            if (cols[0] === 'action' || cols.length < 6) return; // Header or bad line
+            if (cols.length < 6) return;
 
-            const action = cols[0]; // CRAFTING or STORE
-            const qtyIn = parseQty(cols[1]);
-            const itemIn = cols[2].replace(':', ''); // Clean up "Artisanry:"
-            const qtyOut = parseQty(cols[3]);
-            const itemOut = cols[4];
-            const costObj = parseCost(cols[5]);
+            // Columns: action, qtyIn, source, qtyOut, target, costRaw
+            const action = cols[0];
+            const qtyIn = parseFloat(cols[1]) || 1;
+            const source = cols[2].replace(/.*:/, '').trim(); // Remove "Artisanry:"
+            const qtyOut = parseFloat(cols[3]) || 1;
+            const target = cols[4];
+            const costObj = parseCurrency(cols[5]);
 
-            // Add Nodes if not exist
-            if (!nodeDataMap[itemIn]) nodeDataMap[itemIn] = { id: itemIn, type: 'source' };
-            if (!nodeDataMap[itemOut]) nodeDataMap[itemOut] = { id: itemOut, type: 'product' };
+            // Generate Hash to skip duplicates
+            const hash = `${source}-${target}-${action}-${cols[5]}`;
+            if(recipeHash.has(hash)) return;
+            recipeHash.add(hash);
 
-            // Add Link (Recipe)
-            DATA.links.push({
-                source: itemIn,
-                target: itemOut,
-                action: action,
+            // Store Nodes
+            if(!DB.nodes[source]) DB.nodes[source] = { id: source, type: 'source' };
+            if(!DB.nodes[target]) DB.nodes[target] = { id: target, type: 'product' };
+            
+            // Mark as product if it's a target, even if it was a source elsewhere
+            DB.nodes[target].type = 'product'; 
+
+            // Store Recipe
+            const recipe = {
+                source: source,
+                target: target,
                 qtyIn: qtyIn,
                 qtyOut: qtyOut,
                 cost: costObj.val,
-                currency: costObj.curr,
-                ratio: qtyOut / qtyIn // How many made per 1 input
+                currency: costObj.type,
+                action: action // CRAFTING, STORE, GATHERING
+            };
+            DB.recipes.push(recipe);
+
+            // Index for Calculator
+            if(!DB.recipesByTarget[target]) DB.recipesByTarget[target] = [];
+            DB.recipesByTarget[target].push(recipe);
+        });
+    }
+
+    document.getElementById('dirInput').addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files); // subdirectories included automatically by input
+        recipeHash.clear();
+        DB.nodes = {};
+        DB.recipes = [];
+        DB.recipesByTarget = {};
+
+        let count = 0;
+        const promises = files.map(file => {
+            if(!file.name.endsWith('.csv')) return Promise.resolve();
+            return file.text().then(text => {
+                processCSV(text);
+                count++;
             });
         });
 
-        // Rebuild Nodes Array
-        DATA.nodes = Object.values(nodeDataMap);
-        updateGraph();
-    }
-
-    // Handle File Upload
-    document.getElementById('csvInput').addEventListener('change', async (e) => {
-        const files = e.target.files;
-        let count = 0;
-        
-        DATA.nodes = [];
-        DATA.links = [];
-        nodeDataMap = {};
-
-        const readFile = (file) => {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    processCSVContent(evt.target.result);
-                    resolve();
-                };
-                reader.readAsText(file);
-            });
-        };
-
-        const promises = [];
-        for (let i = 0; i < files.length; i++) {
-            if (files[i].name.endsWith('.csv')) {
-                promises.push(readFile(files[i]));
-                count++;
-            }
-        }
-
         await Promise.all(promises);
-        document.getElementById('file-status').innerText = `Loaded ${count} CSV files.`;
+        document.getElementById('loadStatus').innerText = `Loaded ${count} files. Found ${DB.recipes.length} recipes.`;
+        
+        initGraph();
     });
 
-
     // ==========================================
-    // 3. VISUALIZATION (D3)
+    // 2. VISUALIZATION (D3)
     // ==========================================
-    
-    const width = window.innerWidth - 280; // Minus sidebar
-    const height = window.innerHeight;
+    const viz = document.getElementById('viz');
+    let simulation, svg, g;
 
-    const svg = d3.select("#viz-container").append("svg")
-        .attr("width", "100%")
-        .attr("height", "100%")
-        .call(d3.zoom().on("zoom", (e) => g.attr("transform", e.transform)))
-        .append("g");
+    function initGraph() {
+        viz.innerHTML = '';
+        const width = viz.clientWidth;
+        const height = viz.clientHeight;
 
-    const g = svg.append("g");
-    
-    // Markers
-    svg.append("defs").selectAll("marker")
-        .data(["end"])
-        .enter().append("marker")
-        .attr("id", "arrow")
-        .attr("viewBox", "0 -5 10 10")
-        .attr("refX", 25)
-        .attr("refY", 0)
-        .attr("markerWidth", 6)
-        .attr("markerHeight", 6)
-        .attr("orient", "auto")
-        .append("path")
-        .attr("d", "M0,-5L10,0L0,5")
-        .attr("fill", "#585b70");
+        svg = d3.select("#viz").append("svg")
+            .attr("width", width).attr("height", height)
+            .call(d3.zoom().on("zoom", (e) => g.attr("transform", e.transform)))
+            .on("dblclick.zoom", null);
 
-    let simulation = d3.forceSimulation()
-        .force("link", d3.forceLink().id(d => d.id).distance(150))
-        .force("charge", d3.forceManyBody().strength(-400))
-        .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collide", d3.forceCollide(40));
+        // Arrow Marker
+        svg.append("defs").append("marker")
+            .attr("id", "arrow")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 55).attr("refY", 0)
+            .attr("markerWidth", 6).attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#555");
 
-    function updateGraph() {
-        // 1. Links
+        g = svg.append("g");
+
+        const nodesArray = Object.values(DB.nodes);
+        const linksArray = DB.recipes.map(r => ({ ...r })); // Clone
+
+        simulation = d3.forceSimulation(nodesArray)
+            .force("link", d3.forceLink(linksArray).id(d => d.id).distance(200))
+            .force("charge", d3.forceManyBody().strength(-1000))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collide", d3.forceCollide(60));
+
+        // Draw Links
         const link = g.selectAll(".link-group")
-            .data(DATA.links)
-            .join("g")
-            .attr("class", "link-group");
+            .data(linksArray)
+            .join("g");
 
-        // Append path if new
-        link.append("path")
+        const linkPath = link.append("path")
             .attr("class", "link")
             .attr("marker-end", "url(#arrow)");
 
-        // Append Label
-        link.append("text")
-            .attr("class", "link-label")
-            .attr("dy", -5)
-            .text(d => `${d.qtyIn}→${d.qtyOut} (${d.cost}${d.currency})`);
-
-        // 2. Nodes
-        const node = g.selectAll(".node")
-            .data(DATA.nodes, d => d.id)
-            .join("g")
-            .attr("class", "node")
-            .call(d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended))
-            .on("click", (e, d) => selectNode(d))
-            .on("dblclick", (e, d) => unpinNode(d)); // Double click to unpin
-
-        node.append("circle")
-            .attr("r", 15)
-            .attr("class", d => `circle-${d.id}`); // Class for selection styling
-
-        node.append("text")
-            .attr("dy", 25)
-            .attr("text-anchor", "middle")
-            .text(d => d.id);
-
-        // Restart Sim
-        simulation.nodes(DATA.nodes).on("tick", ticked);
-        simulation.force("link").links(DATA.links);
-        simulation.alpha(1).restart();
-
-        function ticked() {
-            link.select("path").attr("d", d => {
-                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
-            });
-            
-            link.select("text")
-                .attr("x", d => (d.source.x + d.target.x) / 2)
-                .attr("y", d => (d.source.y + d.target.y) / 2);
-
-            node.attr("transform", d => `translate(${d.x},${d.y})`);
-        }
-    }
-
-    // --- Drag & Sticky Logic ---
-    function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-        d3.select(this).select("circle").classed("pinned", true);
-    }
-
-    function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
-    }
-
-    function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        // STICKY: We DO NOT set fx/fy to null here. We keep them.
-        // Node stays where user left it.
-    }
-
-    function unpinNode(d) {
-        d.fx = null;
-        d.fy = null;
-        simulation.alpha(0.3).restart();
-        // Remove visual indicator
-        // Note: In a real app, we'd need to target the specific circle element cleanly
-        updateGraph(); 
-        d3.selectAll("circle").classed("pinned", (n) => n.fx != null);
-    }
-
-    // ==========================================
-    // 4. CALCULATOR LOGIC
-    // ==========================================
-
-    function selectNode(d) {
-        selectedNodeId = d.id;
+        const linkLabel = link.append("g");
+        linkLabel.append("rect").attr("class", "link-label-bg").attr("rx",3);
+        linkLabel.append("text").attr("class", "link-text")
+            .attr("dy", 3)
+            .text(d => `${d.qtyIn} → ${d.qtyOut} (${d.cost}${d.currency})`);
         
-        // Highlight visual
-        d3.selectAll("circle").classed("node-selected", false);
-        d3.selectAll(`.circle-${d.id.replace(/\s/g, '')}`).classed("node-selected", true); // Simple selector sanitization
-
-        // Show Panel
-        const panel = document.getElementById("calculator-panel");
-        panel.style.display = "block";
-        document.getElementById("calc-title").innerText = d.id;
-        
-        // Reset inputs
-        document.getElementById("calc-target-qty").value = 1;
-        document.getElementById("calc-inventory").value = 0;
-        document.getElementById("calc-buy-price").value = 0;
-        document.getElementById("calc-sell-price").value = 0;
-        
-        updateCalculator();
-    }
-
-    // Listeners for live calc
-    ['calc-target-qty', 'calc-inventory', 'calc-buy-price', 'calc-sell-price'].forEach(id => {
-        document.getElementById(id).addEventListener('input', updateCalculator);
-    });
-
-    function updateCalculator() {
-        if (!selectedNodeId) return;
-
-        const targetQty = parseFloat(document.getElementById("calc-target-qty").value) || 0;
-        const inventory = parseFloat(document.getElementById("calc-inventory").value) || 0;
-        const buyPrice = parseFloat(document.getElementById("calc-buy-price").value) || 0;
-        const sellPrice = parseFloat(document.getElementById("calc-sell-price").value) || 0;
-
-        const needed = Math.max(0, targetQty - inventory);
-        const revenue = targetQty * sellPrice;
-
-        // Find recipes that MAKE this item
-        const recipes = DATA.links.filter(l => l.target.id === selectedNodeId);
-        const listDiv = document.getElementById("recipes-list");
-        listDiv.innerHTML = "";
-
-        if (recipes.length === 0) {
-            listDiv.innerHTML = "<p>No known recipes create this item (It might be a raw resource).</p>";
-            // Simple Profit calc for raw item
-            const cost = needed * buyPrice;
-            updateProfitDisplay(revenue, cost);
-            return;
-        }
-
-        // Calculate costs for each recipe
-        let bestCost = Infinity;
-
-        recipes.forEach(r => {
-            // r.source is the ingredient object (d3 converted id to object)
-            const ingredientName = r.source.id;
-            
-            // How many times do we need to craft?
-            // Recipe: 10 Charcoal -> 15 Powder. We need 'needed' Powder.
-            // Crafts = needed / 15
-            const craftsRequired = needed / r.qtyOut;
-            
-            // Total Ingredients needed
-            const ingredientsNeeded = craftsRequired * r.qtyIn;
-            
-            // Total Currency Fee
-            const totalFee = craftsRequired * r.cost;
-
-            // WE DON'T KNOW the ingredient price automatically unless user inputs it.
-            // For simplicity in this UI, we assume user inputs "Buy Price" in the context of the INGREDIENT 
-            // OR we just show the quantities. 
-            // *Correction*: The prompt asks for price calculations. 
-            // To keep it robust: We will show the formula. 
-            
-            const div = document.createElement("div");
-            div.className = "recipe-card";
-            div.innerHTML = `
-                <div class="recipe-header">
-                    <span>Via ${r.action}</span>
-                    <span>${r.cost > 0 ? r.cost + r.currency : 'Free'}</span>
-                </div>
-                <div>Inputs: <b>${r.source.id}</b></div>
-                <div>Ratio: ${r.qtyIn} : ${r.qtyOut}</div>
-                <hr style="border:0; border-top:1px solid #444; margin:5px 0">
-                <div>To make <b>${needed.toFixed(1)}</b>:</div>
-                <div style="color:var(--green)">Need <b>${ingredientsNeeded.toFixed(1)}</b> x ${ingredientName}</div>
-                <div style="color:var(--red)">Fee: ${(totalFee).toFixed(1)} ${r.currency}</div>
-            `;
-            listDiv.appendChild(div);
+        // Size backgrounds
+        linkLabel.each(function() {
+            const box = this.querySelector('text').getBBox();
+            d3.select(this).select('rect')
+                .attr("x", box.x - 2).attr("y", box.y - 2)
+                .attr("width", box.width + 4).attr("height", box.height + 4);
         });
 
-        // For the "Profit Analysis" box, we need a base cost. 
-        // Since we don't have recursive pricing for every item in the tree stored in state,
-        // We will treat "Cost" as (Target Qty * Buy Price) + 0 (assuming buy price is the acquisition cost).
-        // This allows the user to manually determine "It costs me 5g to get this item" whether by craft or buy.
-        
-        const totalCost = (needed * buyPrice); // User defines what "Cost" means to them via the input
-        
-        updateProfitDisplay(revenue, totalCost);
+        // Draw Nodes
+        const node = g.selectAll(".node")
+            .data(nodesArray)
+            .join("foreignObject")
+            .attr("width", 100).attr("height", 60)
+            .call(d3.drag().on("start", dragStart).on("drag", dragged).on("end", dragEnd))
+            .on("click", (e, d) => openCalculator(d.id));
+
+        node.append("xhtml:div")
+            .attr("class", d => `node-container type-${d.type}`)
+            .html(d => `<div class="node-name">${d.id}</div>`);
+
+        simulation.on("tick", () => {
+            node.attr("x", d => d.x - 50).attr("y", d => d.y - 30);
+            
+            linkPath.attr("d", d => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`);
+            
+            linkLabel.attr("transform", d => {
+                const x = (d.source.x + d.target.x) / 2;
+                const y = (d.source.y + d.target.y) / 2;
+                return `translate(${x},${y})`;
+            });
+        });
     }
 
-    function updateProfitDisplay(revenue, cost) {
-        const profit = revenue - cost;
-        document.getElementById("res-revenue").innerText = revenue.toFixed(2);
-        document.getElementById("res-cost").innerText = cost.toFixed(2);
+    function dragStart(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+    }
+    function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+    function dragEnd(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null; d.fy = null;
+    }
+
+    // ==========================================
+    // 3. ADVANCED CALCULATOR
+    // ==========================================
+    
+    // State object for the calculator
+    // { "Ruby": { method: "craft", buyPrice: 0, sellPrice: 8000 }, "Resin": { method: "farm", ... } }
+    let calcState = {}; 
+    let currentTarget = null;
+
+    function toggleCalc(show) {
+        const el = document.getElementById('calculator');
+        if(show) el.classList.add('open');
+        else el.classList.remove('open');
+    }
+
+    function openCalculator(itemId) {
+        currentTarget = itemId;
+        calcState = {}; // Reset state
+        document.getElementById('calc-item-name').innerText = itemId;
+        const container = document.getElementById('calc-content');
+        container.innerHTML = '';
+
+        // Build Recursive UI
+        // We start with quantity 1 of the target item
+        buildCalcRow(container, itemId, 1, 0);
         
-        const pEl = document.getElementById("res-profit");
-        pEl.innerText = profit.toFixed(2);
-        pEl.className = profit >= 0 ? "profit-positive" : "profit-negative";
+        toggleCalc(true);
+        recalculateAll();
+    }
+
+    // Recursive UI Builder
+    function buildCalcRow(container, itemId, qtyNeeded, depth) {
+        // Initialize State if new
+        if(!calcState[itemId]) {
+            const recipes = DB.recipesByTarget[itemId];
+            calcState[itemId] = {
+                method: (recipes && recipes.length > 0) ? 'craft' : 'buy', // Default to craft if possible
+                buyPrice: 0,
+                sellPrice: 0,
+                recipeIndex: 0 // Which recipe to use if multiple
+            };
+        }
+
+        const rowId = `row-${Math.random().toString(36).substr(2,9)}`;
+        const recipes = DB.recipesByTarget[itemId] || [];
+        const hasRecipe = recipes.length > 0;
+
+        const div = document.createElement('div');
+        div.className = `calc-row depth-${depth}`;
+        div.dataset.id = itemId;
+        div.dataset.qty = qtyNeeded;
+        
+        // --- Header ---
+        let html = `
+            <div class="row-header">
+                <span class="item-title">${qtyNeeded}x ${itemId}</span>
+                <select class="strategy-select" onchange="updateMethod('${itemId}', this, '${rowId}')">
+                    <option value="buy" ${calcState[itemId].method === 'buy' ? 'selected' : ''}>Buy (Market)</option>
+                    ${hasRecipe ? `<option value="craft" ${calcState[itemId].method === 'craft' ? 'selected' : ''}>Craft / Process</option>` : ''}
+                    <option value="farm" ${calcState[itemId].method === 'farm' ? 'selected' : ''}>Farm / Gather (Free)</option>
+                </select>
+            </div>
+        `;
+
+        // --- Inputs (Prices) ---
+        // Only show Sell Price for the root item (depth 0)
+        // Show Buy Price for everyone (used if method is Buy)
+        html += `
+            <div class="inputs-grid">
+                <div class="input-group">
+                    Buy Price: <input type="number" value="${calcState[itemId].buyPrice}" 
+                    oninput="updatePrice('${itemId}', 'buyPrice', this.value)" placeholder="Unit Price">
+                </div>
+                ${depth === 0 ? `
+                <div class="input-group">
+                    Sell Price: <input type="number" value="${calcState[itemId].sellPrice}" 
+                    oninput="updatePrice('${itemId}', 'sellPrice', this.value)" placeholder="Unit Price">
+                </div>` : ''}
+            </div>
+        `;
+        
+        // --- Recipe Selector (if multiple) ---
+        if(hasRecipe && recipes.length > 1) {
+            html += `<div style="margin-bottom:5px; font-size:10px;">
+                Recipe: <select onchange="updateRecipe('${itemId}', this.selectedIndex, '${rowId}')">
+                    ${recipes.map((r, i) => `<option value="${i}" ${calcState[itemId].recipeIndex === i ? 'selected' : ''}>via ${r.source} (${r.action})</option>`).join('')}
+                </select>
+            </div>`;
+        }
+
+        // --- Sub Ingredients Container ---
+        html += `<div class="sub-ingredients ${calcState[itemId].method === 'craft' ? 'show' : ''}" id="${rowId}-subs"></div>`;
+        
+        // --- Cost Display ---
+        html += `<div class="cost-display" id="${rowId}-cost">...</div>`;
+
+        div.innerHTML = html;
+        container.appendChild(div);
+
+        // Recursively add children if Crafting
+        if(hasRecipe) {
+            const subsContainer = div.querySelector('.sub-ingredients');
+            const activeRecipe = recipes[calcState[itemId].recipeIndex];
+            
+            // Calculate how many crafts needed
+            // If recipe makes 15, and we need 30, we craft 2 times.
+            // If recipe makes 15, and we need 1, we still craft 1 time (usually).
+            // Let's assume fractional crafting is allowed for math, or user rounds up.
+            // For exact logic: Math.ceil(qtyNeeded / activeRecipe.qtyOut). 
+            // Let's use exact proportion for profit calc.
+            
+            const ratio = qtyNeeded / activeRecipe.qtyOut; 
+            const subQty = activeRecipe.qtyIn * ratio;
+            
+            // Render Source Item
+            buildCalcRow(subsContainer, activeRecipe.source, parseFloat(subQty.toFixed(2)), depth + 1);
+        }
+    }
+
+    // --- Calculator Logic Handlers ---
+
+    window.updateMethod = function(itemId, select, rowId) {
+        calcState[itemId].method = select.value;
+        // Toggle visibility of sub-ingredients
+        const subs = document.getElementById(`${rowId}-subs`);
+        if(subs) {
+            subs.style.display = select.value === 'craft' ? 'block' : 'none';
+        }
+        recalculateAll();
+    };
+
+    window.updatePrice = function(itemId, type, val) {
+        calcState[itemId][type] = parseFloat(val) || 0;
+        recalculateAll();
+    };
+    
+    window.updateRecipe = function(itemId, index, rowId) {
+        calcState[itemId].recipeIndex = parseInt(index);
+        // Full re-render of this branch needed to change ingredients
+        // For simplicity, we just re-open the whole calculator for now or refresh
+        openCalculator(currentTarget); 
+    };
+
+    function recalculateAll() {
+        // Start from top
+        const rootContainer = document.getElementById('calc-content').firstElementChild;
+        if(!rootContainer) return;
+
+        const results = getCostRecursive(rootContainer);
+        
+        // Update Footer
+        const rootState = calcState[currentTarget];
+        const totalRevenue = rootState.sellPrice * 1; // Qty is 1 for top level
+
+        document.getElementById('sum-revenue').innerText = totalRevenue.toLocaleString() + " LB";
+        document.getElementById('sum-expense-lb').innerText = results.costLB.toLocaleString() + " LB";
+        document.getElementById('sum-expense-f').innerText = results.costF.toLocaleString() + " F";
+        document.getElementById('sum-expense-h').innerText = results.costH.toLocaleString() + " H";
+
+        const profit = totalRevenue - results.costLB;
+        const pEl = document.getElementById('sum-profit');
+        pEl.innerText = profit.toLocaleString() + " LB";
+        pEl.className = profit >= 0 ? "profit-val profit-pos" : "profit-val profit-neg";
+    }
+
+    function getCostRecursive(rowEl) {
+        const itemId = rowEl.dataset.id;
+        const qty = parseFloat(rowEl.dataset.qty);
+        const state = calcState[itemId];
+        
+        let costLB = 0, costF = 0, costH = 0;
+
+        if (state.method === 'buy') {
+            // Buy from Market
+            costLB = state.buyPrice * qty;
+        } 
+        else if (state.method === 'farm') {
+            // Farm (Free money)
+            // Check if there is a recipe associated with the gathering?
+            // The CSV might say "Action: GATHERING, Cost: 20F".
+            const recipes = DB.recipesByTarget[itemId];
+            if(recipes && recipes.length > 0) {
+                const r = recipes[state.recipeIndex];
+                // Process costs if they exist in the gathering recipe
+                const ratio = qty / r.qtyOut;
+                if(r.currency === 'F') costF += r.cost * ratio;
+                if(r.currency === 'H') costH += r.cost * ratio;
+                if(r.currency === 'LB') costLB += r.cost * ratio;
+            }
+        }
+        else if (state.method === 'craft') {
+            // Recurse children
+            const subContainer = rowEl.querySelector('.sub-ingredients');
+            Array.from(subContainer.children).forEach(childRow => {
+                const res = getCostRecursive(childRow);
+                costLB += res.costLB;
+                costF += res.costF;
+                costH += res.costH;
+            });
+
+            // Add Crafting Fee of THIS step
+            const recipes = DB.recipesByTarget[itemId];
+            if(recipes) {
+                const r = recipes[state.recipeIndex];
+                const ratio = qty / r.qtyOut;
+                if(r.currency === 'F') costF += r.cost * ratio;
+                if(r.currency === 'H') costH += r.cost * ratio;
+                if(r.currency === 'LB') costLB += r.cost * ratio;
+            }
+        }
+
+        // Update Row Display
+        const displayEl = rowEl.querySelector('.cost-display');
+        if(displayEl) {
+            let txt = [];
+            if(costLB > 0) txt.push(`<span class="currency-lb">${costLB.toFixed(0)} LB</span>`);
+            if(costF > 0) txt.push(`<span class="currency-f">${costF.toFixed(0)} F</span>`);
+            if(costH > 0) txt.push(`<span class="currency-h">${costH.toFixed(0)} H</span>`);
+            if(txt.length === 0) txt.push("Free");
+            displayEl.innerHTML = txt.join(' + ');
+        }
+
+        return { costLB, costF, costH };
     }
 
 </script>
