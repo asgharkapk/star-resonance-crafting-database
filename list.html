@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML File Index</title>
+    <style>
+        /* --- CSS STYLING --- */
+        :root {
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: rgba(255, 255, 255, 0.15);
+            --item-bg: rgba(255, 255, 255, 0.25);
+            --hover-color: #fff;
+            --text-main: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-main);
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px); /* Glass effect */
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            font-weight: 300;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        #file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .file-link {
+            display: block;
+            text-decoration: none;
+            color: var(--text-main);
+            background: var(--item-bg);
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-link:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .file-link:active {
+            transform: scale(0.98);
+        }
+
+        .icon {
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        .loading, .error {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            opacity: 0.8;
+        }
+        
+        .error {
+            color: #ffcccc;
+            background: rgba(255, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Directory Index</h1>
+        <div id="content-area">
+            <div class="loading">Loading files...</div>
+        </div>
+    </div>
+
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+        
+        // Configuration: Change this if your JSON file is named differently
+        const JSON_PATH = 'data/html.json'; 
+        const DATA_FOLDER = 'data/';
+
+        async function loadFiles() {
+            const contentArea = document.getElementById('content-area');
+
+            try {
+                // Fetch the JSON file
+                const response = await fetch(JSON_PATH);
+                
+                if (!response.ok) {
+                    throw new Error(`Could not find ${JSON_PATH} (Status: ${response.status})`);
+                }
+
+                const data = await response.json();
+                
+                // Clear loading message
+                contentArea.innerHTML = '<ul id="file-list"></ul>';
+                const list = document.getElementById('file-list');
+
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(filename => {
+                        // Create list item
+                        const li = document.createElement('li');
+                        
+                        // Create link
+                        const a = document.createElement('a');
+                        a.href = DATA_FOLDER + filename; 
+                        a.className = 'file-link';
+                        
+                        // Add text and a decorative icon arrow
+                        a.innerHTML = `
+                            <span>${filename}</span>
+                            <span class="icon">➜</span>
+                        `;
+
+                        li.appendChild(a);
+                        list.appendChild(li);
+                    });
+                } else {
+                    contentArea.innerHTML = '<div class="error">No files found in JSON.</div>';
+                }
+
+            } catch (error) {
+                console.error(error);
+                contentArea.innerHTML = `<div class="error">Error: ${error.message}<br><small>Make sure you ran the Python script and the JSON file exists.</small></div>`;
+            }
+        }
+
+        // Run the function when page loads
+        document.addEventListener('DOMContentLoaded', loadFiles);
+    </script>
+</body>
+</html>
