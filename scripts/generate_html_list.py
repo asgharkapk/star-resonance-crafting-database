@@ -1,7 +1,7 @@
 import os
 import json
 
-INDEX_FILE = "html.json"
+INDEX_FILE = "data/html.json"
 
 def generate_index_json():
     html_files = []
