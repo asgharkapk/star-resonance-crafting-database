@@ -30,6 +30,9 @@ jobs:
 
       - name: Generate index.json
         run: python scripts/generate_index_json.py
+        
+      - name: Generate html list
+        run: python scripts/generate_html_list.py
 
       - name: Run Craft Optimizer
         run: |
@@ -60,6 +63,7 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git add scripts/best_worst_recipes.csv
           git add data/index.json
+          git add data/html.json
           git commit -m "Update best_worst_recipes.csv and Update index.json [skip ci]" || echo "No changes to commit"
           git push
 
