@@ -2,7 +2,7 @@ import os
 import json
 
 DATA_DIR = "data"
-INDEX_FILE = os.path.join(DATA_DIR, "index.json")
+INDEX_FILE = os.path.join(DATA_DIR, "html.json")
 
 def generate_index_json():
     if not os.path.exists(DATA_DIR):
