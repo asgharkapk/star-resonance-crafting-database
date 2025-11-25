@@ -1,3 +1,22 @@
 {
-  "files": []
+  "files": [
+    "backup/index.html",
+    "backup/index1.html",
+    "backup/index3.html",
+    "backup/index4.html",
+    "floating.html",
+    "floating/2.html",
+    "floating/3.html",
+    "floating/index.html",
+    "index.html",
+    "list.html",
+    "new/1.html",
+    "new/2.html",
+    "new/3.html",
+    "new/4.html",
+    "test.html",
+    "v1.html",
+    "v2.html",
+    "v3.html"
+  ]
 }
