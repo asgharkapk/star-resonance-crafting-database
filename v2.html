@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Resonance: Crafting & Economy</title>
+<!-- D3 Library -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<style>
+/* =========================================
+   1. GLOBAL THEME & LAYOUT
+   ========================================= */
+:root {
+  --bg-dark: #0a0c16;
+  --bg-panel: rgba(255, 255, 255, 0.06);
+  --accent: #00c8ff;
+  --accent-glow: 0 0 12px rgba(0,200,255,0.6);
+  --text-light: #f0f3ff;
+  --text-dim: #8ba0b5;
+  --radius: 14px;
+  --transition: 0.3s ease;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at top, #111428, #05060e);
+  color: var(--text-light);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+header {
+  background: rgba(10,14,30,0.8);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-align: center;
+  padding: 1.5rem 1rem;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+}
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: var(--accent-glow);
+}
+
+/* Navigation */
+nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+nav a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-weight: 500;
+  position: relative;
+  transition: var(--transition);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+nav a:hover { color: var(--accent); }
+
+/* Main Content */
+main {
+  flex: 1;
+  max-width: 1200px;
+  width: 95%;
+  margin: 2rem auto;
+  padding-bottom: 4rem;
+}
+
+section {
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  margin-bottom: 2rem;
+  padding: 1.5rem 2rem;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+h2 {
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+  color: var(--accent);
+  margin-top: 0;
+}
+
+/* =========================================
+   2. D3 VISUALIZATION STYLES
+   ========================================= */
+#viz-wrapper {
+    position: relative;
+    width: 100%;
+    height: 600px;
+    background: #000;
+    border-radius: 8px;
+    border: 1px solid #333;
+    overflow: hidden;
+}
+
+#viz-container {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    background: radial-gradient(circle at center, #1a1d29 0%, #000 100%);
+}
+#viz-container:active { cursor: grabbing; }
+
+/* D3 Node Styling */
+.node-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border-radius: 8px;
+    box-sizing: border-box;
+    padding: 5px;
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    transition: transform 0.2s;
+    font-family: 'Segoe UI', sans-serif;
+    color: white;
+}
+.node-container:hover {
+    transform: scale(1.05);
+    z-index: 100;
+    box-shadow: 0 0 15px var(--accent);
+    border-color: var(--accent);
+}
+
+/* Node Types */
+.type-shop { background: linear-gradient(135deg, #333, #222); border-left: 3px solid #f1c40f; }
+.type-item { background: linear-gradient(135deg, #2c3e50, #1a252f); border-left: 3px solid #3498db; }
+.type-final { background: linear-gradient(135deg, #8e44ad, #5e2d73); border-left: 3px solid #e056fd; }
+
+/* Node Text */
+.node-name { font-weight: bold; font-size: 13px; margin-bottom: 2px; }
+.node-detail { font-size: 10px; color: #aaa; }
+.craft-cost { color: #f1c40f; font-weight: bold; font-size: 10px; margin-top: 2px; }
+
+/* Links */
+.link { fill: none; stroke: #555; stroke-width: 1.5px; transition: stroke 0.3s; }
+.link-label-bg { fill: #0a0c16; opacity: 0.9; }
+.link-text { font-size: 10px; fill: #ccc; text-anchor: middle; font-weight: bold; pointer-events: none; }
+
+/* =========================================
+   3. CALCULATOR & TABLES
+   ========================================= */
+table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
+th, td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+th { background: rgba(255,255,255,0.08); color: var(--accent); }
+tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+
+/* Inputs */
+input, select, button {
+  background: #111; border: 1px solid #444; border-radius: 4px; padding: 6px; color: #fff; width: 100%; box-sizing: border-box;
+}
+input:focus, select:focus { border-color: var(--accent); outline: none; }
+button {
+  background: linear-gradient(145deg, #2c3e50, #1a252f); cursor: pointer; margin-top: 10px; width: auto; padding: 6px 15px;
+}
+button:hover { background: var(--accent); color: #000; }
+.remove-recipe { color: #ff6b6b !important; border-color: #ff6b6b !important; width: 30px !important; }
+
+/* Sections */
+#calc-results, #calc-recipe-paths { background: #1e2130; padding: 15px; border-radius: 8px; margin-top: 10px; }
+#calc-debug { color: #ff6b6b; font-weight: bold; margin-top: 10px; }
+
+/* Database Dump Styling */
+.db-category { margin-top: 20px; }
+.item-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 999; }
+.modal.hidden { display: none; }
+.modal-content {
+  background: #151725; border: 1px solid var(--accent); border-radius: var(--radius); padding: 2rem; max-width: 600px; width: 90%;
+  color: var(--text-light); box-shadow: 0 0 30px rgba(0,200,255,0.15);
+}
+#modal-close { float: right; font-size: 1.8rem; cursor: pointer; color: var(--accent); }
+
+footer { text-align: center; padding: 1.5rem; color: var(--text-dim); margin-top: 2rem; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Star Resonance DB</h1>
+</header>
+
+<nav>
+  <a href="#visualizer">Visual Tree</a>
+  <a href="#calculator">Calculator</a>
+  <a href="#database">Database</a>
+</nav>
+
+<main>
+  <!-- VISUALIZER -->
+  <section id="visualizer">
+    <h2>Recipe & Economy Tree</h2>
+    <p style="color: #aaa; margin-bottom: 1rem;">Drag nodes to rearrange. Scroll to zoom.</p>
+    <div id="viz-wrapper">
+        <div id="viz-container"></div>
+    </div>
+  </section>
+
+  <!-- CALCULATOR -->
+  <section id="calculator">
+    <h2>Crafting Calculator</h2>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+            <h3>Target Item</h3>
+            <table id="calc-target-table">
+                <thead><tr><th>Item</th><th>Need</th><th>Have</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><select id="calc-item"></select></td>
+                        <td><input type="number" class="calc-amount" min="1" value="1"></td>
+                        <td><input type="number" class="calc-have" min="0" value="0"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h3>Wallet</h3>
+            <table id="calc-currency-table">
+                <thead><tr><th>Currency</th><th>Owned</th></tr></thead>
+                <tbody>
+                    <tr><td>Gold</td><td><input type="number" class="calc-currency" value="0"></td></tr>
+                    <tr><td>Shards</td><td><input type="number" class="calc-currency" value="0"></td></tr>
+                    <tr><td>Tokens</td><td><input type="number" class="calc-currency" value="0"></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h3>User Recipes</h3>
+    <table id="user-recipes">
+        <thead><tr><th>Type</th><th>In</th><th>Ingredient</th><th>Out</th><th>Result</th><th>Cost</th><th></th></tr></thead>
+        <tbody></tbody>
+    </table>
+    <button id="add-user-recipe">+ Add Recipe</button>
+
+    <h3>Shopping List & Costs</h3>
+    <div id="calc-results"></div>
+
+    <h3>Step-by-Step Path</h3>
+    <div id="calc-recipe-paths"></div>
+    <div id="calc-debug"></div>
+  </section>
+
+  <!-- DATABASE DUMP -->
+  <section id="database">
+    <h2>Embedded Database</h2>
+    <div id="csv-output"></div>
+  </section>
+</main>
+
+<footer>
+  <p>© 2025 Star Resonance Fan Project. Data embedded locally.</p>
+</footer>
+
+<!-- ===== MODAL ===== -->
+<div id="item-modal" class="modal hidden">
+  <div class="modal-content">
+    <span id="modal-close">&times;</span>
+    <h2 id="modal-title"></h2>
+    <div id="modal-details"></div>
+  </div>
+</div>
+
+<!-- ==========================================
+     SCRIPTS
+     ========================================== -->
+<script>
+    // ==========================================
+    // 1. EMBEDDED DATA (Replaces CSV loading)
+    // ==========================================
+    
+    // This is the data used for BOTH the Graph and the Calculator
+    const masterData = {
+        nodes: [
+            { id: "shop_market", name: "Grand Market", type: "shop", currency: "Gold" },
+            { id: "shop_void", name: "Void Trader", type: "shop", currency: "Shards" },
+            { id: "shop_arena", name: "Arena Master", type: "shop", currency: "Tokens" },
+            
+            { id: "Iron Ore", name: "Iron Ore", type: "item", desc: "Raw metal" },
+            { id: "Oak Wood", name: "Oak Wood", type: "item", desc: "Sturdy timber" },
+            { id: "Arcane Flux", name: "Arcane Flux", type: "item", desc: "Magic dust" },
+            { id: "Gladiator Badge", name: "Gladiator Badge", type: "item", desc: "PvP Reward" },
+
+            { id: "Steel Bar", name: "Steel Bar", type: "item", craftCost: 10 },
+            { id: "Reinforced Hilt", name: "Reinforced Hilt", type: "item", craftCost: 15 },
+            { id: "Void Gem", name: "Void Gem", type: "item", craftCost: 50 },
+
+            { id: "Blade of Eternity", name: "Blade of Eternity", type: "final", craftCost: 500 }
+        ],
+        // These are formatted for D3
+        links: [
+            { source: "shop_market", target: "Iron Ore", label: "5 Gold", type: "buy" },
+            { source: "shop_market", target: "Oak Wood", label: "2 Gold", type: "buy" },
+            { source: "shop_void", target: "Arcane Flux", label: "10 Shards", type: "buy" },
+            { source: "shop_arena", target: "Gladiator Badge", label: "1 Token", type: "buy" },
+
+            { source: "Iron Ore", target: "Steel Bar", label: "x3", type: "craft" },
+            { source: "Arcane Flux", target: "Steel Bar", label: "x1", type: "craft" },
+            
+            { source: "Oak Wood", target: "Reinforced Hilt", label: "x5", type: "craft" },
+            { source: "Gladiator Badge", target: "Reinforced Hilt", label: "x2", type: "craft" },
+
+            { source: "Arcane Flux", target: "Void Gem", label: "x10", type: "craft" },
+
+            { source: "Steel Bar", target: "Blade of Eternity", label: "x2", type: "craft" },
+            { source: "Reinforced Hilt", target: "Blade of Eternity", label: "x1", type: "craft" },
+            { source: "Void Gem", target: "Blade of Eternity", label: "x1", type: "craft" }
+        ],
+        // These are formatted for the Calculator logic
+        recipes: [
+            // Shops (Action: STORE)
+            { action: "STORE", to: "Iron Ore", cost: "5", currency: "Gold" },
+            { action: "STORE", to: "Oak Wood", cost: "2", currency: "Gold" },
+            { action: "STORE", to: "Arcane Flux", cost: "10", currency: "Shards" },
+            { action: "STORE", to: "Gladiator Badge", cost: "1", currency: "Tokens" },
+
+            // Crafts (Action: CRAFT)
+            { action: "CRAFT", from: "Iron Ore+Arcane Flux", cin: "3+1", to: "Steel Bar", cout: "3", cost: "10" },
+            { action: "CRAFT", from: "Oak Wood+Gladiator Badge", cin: "5+2", to: "Reinforced Hilt", cout: "1", cost: "15" },
+            { action: "CRAFT", from: "Arcane Flux", cin: "10", to: "Void Gem", cout: "1", cost: "50" },
+            { action: "CRAFT", from: "Steel Bar+Reinforced Hilt+Void Gem", cin: "2+1+1", to: "Blade of Eternity", cout: "1", cost: "500" }
+        ]
+    };
+
+    // ==========================================
+    // 2. D3 VISUALIZATION LOGIC
+    // ==========================================
+    (function initD3() {
+        const width = document.getElementById("viz-container").clientWidth;
+        const height = document.getElementById("viz-container").clientHeight;
+
+        const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", (e) => g.attr("transform", e.transform));
+        const svg = d3.select("#viz-container").append("svg")
+            .attr("width", "100%").attr("height", "100%")
+            .call(zoom).on("dblclick.zoom", null);
+        const g = svg.append("g");
+        const defs = svg.append("defs");
+        
+        // Markers
+        const addMarker = (id, color) => defs.append("marker")
+            .attr("id", id).attr("viewBox", "0 -5 10 10").attr("refX", 55).attr("refY", 0)
+            .attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+            .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", color);
+        addMarker("arrow-craft", "#777");
+        addMarker("arrow-buy", "#27ae60");
+
+        const simulation = d3.forceSimulation(masterData.nodes)
+            .force("link", d3.forceLink(masterData.links).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-2000))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collide", d3.forceCollide(80));
+
+        // Links
+        const link = g.append("g").selectAll("g").data(masterData.links).join("g");
+        const linkPath = link.append("path").attr("class", "link")
+            .attr("stroke", d => d.type === 'buy' ? '#27ae60' : '#777')
+            .attr("marker-end", d => d.type === 'buy' ? "url(#arrow-buy)" : "url(#arrow-craft)");
+        
+        const linkLabel = link.append("g");
+        linkLabel.append("rect").attr("class", "link-label-bg").attr("rx", 4).attr("ry", 4);
+        linkLabel.append("text").attr("class", "link-text").attr("dy", 4).text(d => d.label)
+            .each(function() {
+                const b = this.getBBox();
+                d3.select(this.parentNode).select("rect")
+                    .attr("x", b.x - 4).attr("y", b.y - 4).attr("width", b.width + 8).attr("height", b.height + 8);
+            });
+
+        // Nodes
+        const node = g.append("g").selectAll("foreignObject").data(masterData.nodes).join("foreignObject")
+            .attr("width", 100).attr("height", 80)
+            .call(d3.drag()
+                .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+                .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+        node.append("xhtml:div")
+            .attr("class", d => `node-container type-${d.type}`)
+            .html(d => {
+                let h = `<div class="node-name">${d.name}</div>`;
+                if(d.type==='shop') h += `<div class="node-detail" style="color:#f1c40f">Sell: ${d.currency}</div>`;
+                else if(d.craftCost) h += `<div class="craft-cost">🔨 ${d.craftCost} Mana</div>`;
+                else if(d.desc) h += `<div class="node-detail">${d.desc}</div>`;
+                return h;
+            });
+
+        simulation.on("tick", () => {
+            node.attr("x", d => d.x - 50).attr("y", d => d.y - 40);
+            linkPath.attr("d", d => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`);
+            linkLabel.attr("transform", d => `translate(${(d.source.x+d.target.x)/2}, ${(d.source.y+d.target.y)/2})`);
+        });
+    })();
+
+    // ==========================================
+    // 3. DATABASE DISPLAY LOGIC
+    // ==========================================
+    (function renderDatabase(){
+        const container = document.getElementById("csv-output");
+        let html = `<table><thead><tr><th>Type</th><th>Output</th><th>Inputs</th><th>Cost</th></tr></thead><tbody>`;
+        masterData.recipes.forEach(r => {
+            html += `<tr>
+                <td>${r.action}</td>
+                <td class="item-link" onclick="openModal('${r.to}')">${r.to}</td>
+                <td>${r.from || 'Shop'}</td>
+                <td>${r.cost} ${r.currency || 'Mana'}</td>
+            </tr>`;
+        });
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    })();
+
+    // ==========================================
+    // 4. CALCULATOR LOGIC
+    // ==========================================
+    let customRecipes = [];
+
+    function openModal(itemName){
+        const modal = document.getElementById("item-modal");
+        document.getElementById("modal-title").innerText = itemName;
+        
+        const recipes = masterData.recipes.filter(r => r.to === itemName);
+        const usedIn = masterData.recipes.filter(r => r.from && r.from.includes(itemName));
+
+        let content = "<h3>How to get:</h3>";
+        if(recipes.length === 0) content += "<p>No known recipe.</p>";
+        recipes.forEach(r => {
+            if(r.action === 'STORE') content += `<p>💰 Buy for <strong>${r.cost} ${r.currency}</strong></p>`;
+            else content += `<p>🔨 Craft: ${r.from.replace(/\+/g, ' + ')} → ${r.cout}x Result (Cost: ${r.cost})</p>`;
+        });
+
+        content += "<h3>Used for:</h3>";
+        if(usedIn.length === 0) content += "<p>Nothing.</p>";
+        usedIn.forEach(r => {
+             content += `<p>➝ ${r.to}</p>`;
+        });
+
+        document.getElementById("modal-details").innerHTML = content;
+        modal.classList.remove("hidden");
+    }
+    
+    // Close modal
+    document.getElementById("modal-close").onclick = () => document.getElementById("item-modal").classList.add("hidden");
+
+    function updateItemDropdown(){
+        const select = document.getElementById("calc-item");
+        select.innerHTML = "";
+        const items = new Set();
+        // Add from master data
+        masterData.nodes.filter(n => n.type !== 'shop').forEach(n => items.add(n.name));
+        customRecipes.forEach(r => { if(r.to) items.add(r.to); });
+        
+        [...items].sort().forEach(i => {
+            const opt = document.createElement("option");
+            opt.value = i; opt.textContent = i;
+            select.appendChild(opt);
+        });
+    }
+
+    function renderUserRecipes(){
+        const tbody = document.querySelector("#user-recipes tbody");
+        tbody.innerHTML = "";
+        customRecipes.forEach((r, idx) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><select style="width:70px"><option>CRAFT</option><option ${r.action==='STORE'?'selected':''}>STORE</option></select></td>
+                <td><input value="${r.cin}" style="width:40px"></td>
+                <td><input value="${r.from}"></td>
+                <td><input value="${r.cout}" style="width:40px"></td>
+                <td><input value="${r.to}"></td>
+                <td><input value="${r.cost}" style="width:50px"></td>
+                <td><button class="remove-recipe">×</button></td>`;
+            tbody.appendChild(tr);
+
+            // Inputs Update Logic
+            const inputs = tr.querySelectorAll("input, select");
+            inputs.forEach(inp => inp.oninput = () => {
+                r.action = inputs[0].value;
+                r.cin = inputs[1].value;
+                r.from = inputs[2].value;
+                r.cout = inputs[3].value;
+                r.to = inputs[4].value;
+                r.cost = inputs[5].value;
+                updateItemDropdown();
+                calculateAll();
+            });
+            tr.querySelector(".remove-recipe").onclick = () => {
+                customRecipes.splice(idx,1);
+                renderUserRecipes();
+                updateItemDropdown();
+                calculateAll();
+            }
+        });
+    }
+
+    document.getElementById("add-user-recipe").onclick = () => {
+        customRecipes.push({action:"CRAFT", cin:"1", from:"New Item", cout:"1", to:"Result", cost:"10"});
+        renderUserRecipes();
+        updateItemDropdown();
+        calculateAll();
+    };
+
+    // --- RECURSIVE CALCULATOR ENGINE ---
+    function resolve(item, amount, recipes, inv, path=[]) {
+        let res = { needs: {}, paths: [] };
+        let name = item;
+        
+        // Check Inventory
+        if(inv[name] && inv[name] >= amount) {
+            inv[name] -= amount;
+            return res; // Covered by inventory
+        } else if(inv[name] > 0) {
+            amount -= inv[name];
+            inv[name] = 0;
+        }
+
+        // Find Recipe (Prioritize Custom, then Master)
+        let r = recipes.find(x => x.to === name) || masterData.recipes.find(x => x.to === name);
+
+        if(!r) {
+            // No recipe -> Base Material
+            res.needs[name] = (res.needs[name]||0) + amount;
+            res.paths.push(`${amount}x ${name}`);
+            return res;
+        }
+
+        // Calculate Batches
+        let outQty = parseInt(r.cout) || 1;
+        let batches = Math.ceil(amount / outQty);
+        
+        let stepString = "";
+        if(r.action === 'STORE') {
+            let totalCost = batches * parseFloat(r.cost);
+            res.needs[`${r.currency} (for ${name})`] = (res.needs[`${r.currency} (for ${name})`]||0) + totalCost;
+            stepString = `Buy ${amount}x ${name} (${totalCost} ${r.currency})`;
+            res.paths.push(stepString);
+        } else {
+            // Crafting
+            let ingredients = r.from.split("+");
+            let quantities = r.cin ? r.cin.split("+") : [];
+            let craftCost = (parseFloat(r.cost)||0) * batches;
+            
+            if(craftCost > 0) res.needs["Mana (Craft Cost)"] = (res.needs["Mana (Craft Cost)"]||0) + craftCost;
+
+            stepString = `Craft ${batches * outQty}x ${name} (using ${r.from})`;
+            res.paths.push(stepString);
+
+            ingredients.forEach((ing, i) => {
+                let qtyPerBatch = parseInt(quantities[i]) || 1;
+                let totalReq = qtyPerBatch * batches;
+                
+                let sub = resolve(ing.trim(), totalReq, recipes, inv, []);
+                // Merge Needs
+                for(let k in sub.needs) res.needs[k] = (res.needs[k]||0) + sub.needs[k];
+                // Merge Paths (Indent sub-paths)
+                sub.paths.forEach(p => res.paths.push(`&nbsp;&nbsp;↳ ${p}`));
+            });
+        }
+        return res;
+    }
+
+    function calculateAll(){
+        try {
+            document.getElementById("calc-debug").innerHTML = "";
+            const target = document.getElementById("calc-item").value;
+            if(!target) return;
+            const amount = parseInt(document.querySelector(".calc-amount").value) || 1;
+            
+            // Mock Inventory
+            let inv = {}; 
+            // We could grab this from the wallet inputs if we wanted strictly wallet logic, 
+            // but usually inventory refers to items. For now, we assume 0 item inventory.
+
+            const res = resolve(target, amount, customRecipes, inv);
+
+            // Render Shopping List
+            let rows = "";
+            for(let [k,v] of Object.entries(res.needs)){
+                rows += `<tr><td>${k}</td><td>${v}</td></tr>`;
+            }
+            document.getElementById("calc-results").innerHTML = `<table><thead><tr><th>Resource</th><th>Amount</th></tr></thead><tbody>${rows || '<tr><td colspan="2">Nothing needed</td></tr>'}</tbody></table>`;
+
+            // Render Path
+            document.getElementById("calc-recipe-paths").innerHTML = res.paths.map(p => `<div style="padding:4px; border-bottom:1px solid #333">${p}</div>`).join("");
+
+        } catch(e){
+            document.getElementById("calc-debug").innerHTML = "Error: " + e.message;
+            console.error(e);
+        }
+    }
+
+    // Init
+    updateItemDropdown();
+    document.querySelectorAll(".calc-amount").forEach(el => el.oninput = calculateAll);
+    calculateAll(); // Run once
+
+</script>
+</body>
+</html>
