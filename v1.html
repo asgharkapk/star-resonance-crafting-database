@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Resonance: Crafting & Economy</title>
+<!-- D3 Library -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<style>
+/* =========================================
+   1. GLOBAL THEME & LAYOUT (From Input 2)
+   ========================================= */
+:root {
+  --bg-dark: #0a0c16;
+  --bg-panel: rgba(255, 255, 255, 0.06);
+  --accent: #00c8ff;
+  --accent-glow: 0 0 12px rgba(0,200,255,0.6);
+  --text-light: #f0f3ff;
+  --text-dim: #8ba0b5;
+  --radius: 14px;
+  --transition: 0.3s ease;
+  
+  /* Node Colors */
+  --node-shop: #4a4a4a;
+  --node-item: #2c3e50;
+  --node-final: #8e44ad;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at top, #111428, #05060e);
+  color: var(--text-light);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ======== Header ======== */
+header {
+  background: rgba(10,14,30,0.8);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-align: center;
+  padding: 1.5rem 1rem;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+  position: relative;
+  z-index: 10;
+}
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: var(--accent-glow);
+}
+
+/* ======== Navigation ======== */
+nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+nav a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+  position: relative;
+  transition: var(--transition);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+nav a::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0%;
+  height: 2px;
+  background: var(--accent);
+  transition: var(--transition);
+}
+nav a:hover { color: var(--accent); }
+nav a:hover::after { width: 100%; }
+
+/* ======== Main Content ======== */
+main {
+  flex: 1;
+  max-width: 1200px; /* Wider for the graph */
+  width: 95%;
+  margin: 2rem auto;
+  padding-bottom: 4rem;
+}
+
+section {
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  margin-bottom: 2rem;
+  padding: 1.5rem 2rem;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: var(--transition);
+}
+
+h2 {
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+  color: var(--accent);
+  margin-top: 0;
+  text-transform: capitalize;
+}
+
+/* =========================================
+   2. D3 VISUALIZATION STYLES (From Input 1)
+   ========================================= */
+#viz-wrapper {
+    position: relative;
+    width: 100%;
+    height: 600px; /* Fixed height for the graph container */
+    background: #000;
+    border-radius: 8px;
+    border: 1px solid #333;
+    overflow: hidden;
+}
+
+#viz-container {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    background: radial-gradient(circle at center, #1a1d29 0%, #000 100%);
+}
+#viz-container:active { cursor: grabbing; }
+
+/* D3 Node Styling */
+.node-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border-radius: 8px;
+    box-sizing: border-box;
+    padding: 5px;
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: 'Segoe UI', sans-serif;
+    color: white;
+}
+.node-container:hover {
+    transform: scale(1.05);
+    z-index: 100;
+    box-shadow: 0 0 15px var(--accent);
+    border-color: var(--accent);
+}
+
+/* Node Types */
+.type-shop { background: linear-gradient(135deg, #333, #222); border-left: 3px solid #f1c40f; }
+.type-item { background: linear-gradient(135deg, #2c3e50, #1a252f); border-left: 3px solid #3498db; }
+.type-final { background: linear-gradient(135deg, #8e44ad, #5e2d73); border-left: 3px solid #e056fd; box-shadow: 0 0 10px rgba(142, 68, 173, 0.4); }
+
+/* Node Text */
+.node-name { font-weight: bold; font-size: 13px; margin-bottom: 2px; }
+.node-detail { font-size: 10px; color: #aaa; }
+.craft-cost { color: #f1c40f; font-weight: bold; font-size: 10px; margin-top: 2px; }
+
+/* Links */
+.link { fill: none; stroke: #555; stroke-width: 1.5px; transition: stroke 0.3s; }
+.link-label-bg { fill: #0a0c16; opacity: 0.9; }
+.link-text { font-size: 10px; fill: #ccc; text-anchor: middle; font-weight: bold; pointer-events: none; }
+
+/* Arrows */
+#arrow-buy { fill: #27ae60; }
+#arrow-craft { fill: #777; }
+
+/* =========================================
+   3. CALCULATOR & TABLES (From Input 2)
+   ========================================= */
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
+th, td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+th { background: rgba(255,255,255,0.08); color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
+tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+
+/* Links & Highlights */
+.item-link { color: var(--accent); cursor: pointer; text-decoration: underline; transition: var(--transition); }
+.item-link:hover { color: #fff; text-shadow: var(--accent-glow); }
+
+/* Calculator UI */
+#calculator {
+  background: #151725;
+  border: 1px solid #333;
+}
+#calculator table { background: #1e2130; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+#calculator th { background: #2a2e45; color: #fff; }
+#calculator input, #calculator select, #calculator button {
+  background: #111; border: 1px solid #444; border-radius: 4px; padding: 6px; color: #fff; width: 100%; box-sizing: border-box;
+}
+#calculator input:focus, #calculator select:focus { border-color: var(--accent); outline: none; }
+#calculator button {
+  background: linear-gradient(145deg, #2c3e50, #1a252f); cursor: pointer; margin-top: 10px; width: auto; padding: 6px 15px;
+}
+#calculator button:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+.remove-recipe { color: #ff6b6b !important; border-color: #ff6b6b !important; }
+
+#calc-results, #calc-recipe-paths { background: #1e2130; padding: 15px; border-radius: 8px; margin-top: 10px; }
+#calc-debug { color: #ff6b6b; font-weight: bold; margin-top: 10px; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 999; }
+.modal.hidden { display: none; }
+.modal-content {
+  background: #151725; border: 1px solid var(--accent); border-radius: var(--radius); padding: 2rem; max-width: 600px; width: 90%;
+  color: var(--text-light); box-shadow: 0 0 30px rgba(0,200,255,0.15); animation: popIn 0.3s ease;
+}
+@keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+#modal-close { float: right; font-size: 1.8rem; cursor: pointer; color: var(--accent); }
+
+/* Footer */
+footer { text-align: center; padding: 1.5rem; color: var(--text-dim); border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.6); font-size: 0.9rem; margin-top: 2rem; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Star Resonance DB</h1>
+</header>
+
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#visualizer">Visual Tree</a>
+  <a href="#calculator">Calculator</a>
+  <a href="#database">Database</a>
+</nav>
+
+<main>
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>Welcome to the <span style="color:var(--accent)">Star Resonance</span> unified database. Use this terminal to visualize economy paths, calculate crafting costs, and browse the item database.</p>
+  </section>
+
+  <!-- VISUALIZER (From Input 1) -->
+  <section id="visualizer">
+    <h2>Recipe & Economy Tree</h2>
+    <p style="color: #aaa; margin-bottom: 1rem;">Drag nodes to rearrange. Zoom with scroll wheel. Hover for details.</p>
+    <div id="viz-wrapper">
+        <div id="viz-container"></div>
+    </div>
+  </section>
+
+  <!-- CALCULATOR (From Input 2) -->
+  <section id="calculator">
+    <h2>Crafting Calculator</h2>
+    
+    <!-- Inputs -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+            <h3>Target Item</h3>
+            <table id="calc-target-table">
+                <thead><tr><th>Item</th><th>Need</th><th>Have</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><select id="calc-item"></select></td>
+                        <td><input type="number" class="calc-amount" min="1" value="1"></td>
+                        <td><input type="number" class="calc-have" min="0" value="0"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h3>Wallet</h3>
+            <table id="calc-currency-table">
+                <thead><tr><th>Currency</th><th>Owned</th></tr></thead>
+                <tbody>
+                    <tr><td>Gold</td><td><input type="number" class="calc-currency" value="0"></td></tr>
+                    <tr><td>Shards</td><td><input type="number" class="calc-currency" value="0"></td></tr>
+                    <tr><td>Mana</td><td><input type="number" class="calc-currency" value="0"></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- User Recipes -->
+    <h3>Custom/User Recipes</h3>
+    <table id="user-recipes">
+        <thead><tr><th>Type</th><th>In Qty</th><th>Ingredient</th><th>Out Qty</th><th>Result</th><th>Cost</th><th></th></tr></thead>
+        <tbody></tbody>
+    </table>
+    <button id="add-user-recipe">+ Add Recipe</button>
+
+    <!-- Results -->
+    <h3>Shopping List & Costs</h3>
+    <div id="calc-results"></div>
+
+    <h3>Crafting Steps</h3>
+    <div id="calc-recipe-paths"></div>
+    <div id="calc-debug"></div>
+  </section>
+
+  <!-- DATABASE DUMP -->
+  <section id="database">
+    <h2>Raw Data</h2>
+    <div id="csv-output"><p>Loading database index...</p></div>
+  </section>
+</main>
+
+<footer>
+  <p>© 2025 Star Resonance Fan Project. Combined Visualization & Calculator Tool.</p>
+</footer>
+
+<!-- ===== MODAL ===== -->
+<div id="item-modal" class="modal hidden">
+  <div class="modal-content">
+    <span id="modal-close">&times;</span>
+    <h2 id="modal-title"></h2>
+    <div id="modal-details"></div>
+  </div>
+</div>
+
+<!-- ==========================================
+     SCRIPTS
+     ========================================== -->
+<script>
+    // ==========================================
+    // PART A: D3 VISUALIZATION LOGIC
+    // ==========================================
+    (function initD3() {
+        const CURRENCIES = {
+            SHOP_A: { name: "Gold", color: "#f1c40f" },
+            SHOP_B: { name: "Void Shards", color: "#9b59b6" },
+            SHOP_C: { name: "Honor Tokens", color: "#e74c3c" },
+            CRAFT:  { name: "Mana", color: "#3498db" }
+        };
+
+        const data = {
+            nodes: [
+                { id: "shop_market", name: "Grand Market", type: "shop", currency: "SHOP_A" },
+                { id: "shop_void", name: "Void Trader", type: "shop", currency: "SHOP_B" },
+                { id: "shop_arena", name: "Arena Master", type: "shop", currency: "SHOP_C" },
+                
+                { id: "iron", name: "Iron Ore", type: "item", desc: "Mined from rocks" },
+                { id: "wood", name: "Oak Wood", type: "item", desc: "Chopped from trees" },
+                { id: "flux", name: "Arcane Flux", type: "item", desc: "Unstable energy" },
+                { id: "badge", name: "Gladiator Badge", type: "item", desc: "Won in battle" },
+
+                { id: "bar", name: "Steel Bar", type: "item", craftCost: 10 },
+                { id: "hilt", name: "Reinforced Hilt", type: "item", craftCost: 15 },
+                { id: "gem", name: "Void Gem", type: "item", craftCost: 50 },
+
+                { id: "sword", name: "Blade of Eternity", type: "final", craftCost: 500 }
+            ],
+            links: [
+                { source: "shop_market", target: "iron", label: "5 Gold", type: "buy" },
+                { source: "shop_market", target: "wood", label: "2 Gold", type: "buy" },
+                { source: "shop_void", target: "flux", label: "10 Shards", type: "buy" },
+                { source: "shop_arena", target: "badge", label: "1 Token", type: "buy" },
+                { source: "iron", target: "bar", label: "x3", type: "craft" },
+                { source: "flux", target: "bar", label: "x1", type: "craft" },
+                { source: "wood", target: "hilt", label: "x5", type: "craft" },
+                { source: "badge", target: "hilt", label: "x2", type: "craft" },
+                { source: "flux", target: "gem", label: "x10", type: "craft" },
+                { source: "bar", target: "sword", label: "x2", type: "craft" },
+                { source: "hilt", target: "sword", label: "x1", type: "craft" },
+                { source: "gem", target: "sword", label: "x1", type: "craft" }
+            ]
+        };
+
+        const container = document.getElementById("viz-container");
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => g.attr("transform", event.transform));
+
+        const svg = d3.select("#viz-container")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .call(zoom)
+            .on("dblclick.zoom", null);
+
+        const g = svg.append("g");
+        const defs = svg.append("defs");
+        
+        // Markers
+        const createMarker = (id, color) => {
+            defs.append("marker")
+                .attr("id", id)
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 55)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", color);
+        };
+        createMarker("arrow-craft", "#777");
+        createMarker("arrow-buy", "#27ae60");
+
+        const simulation = d3.forceSimulation(data.nodes)
+            .force("link", d3.forceLink(data.links).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-2000))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("y", d3.forceY(0).strength(0.05))
+            .force("collide", d3.forceCollide(80));
+
+        // Links
+        const linkGroup = g.append("g").attr("class", "links");
+        const link = linkGroup.selectAll("line").data(data.links).join("g");
+        
+        const linkPath = link.append("path")
+            .attr("class", "link")
+            .attr("stroke", d => d.type === 'buy' ? '#27ae60' : '#777')
+            .attr("marker-end", d => d.type === 'buy' ? "url(#arrow-buy)" : "url(#arrow-craft)");
+
+        const linkLabelGroup = link.append("g");
+        linkLabelGroup.append("rect").attr("class", "link-label-bg").attr("rx", 4).attr("ry", 4);
+        const linkText = linkLabelGroup.append("text").attr("class", "link-text").attr("dy", 4).text(d => d.label);
+        
+        linkText.each(function() {
+            const bbox = this.getBBox();
+            d3.select(this.parentNode).select("rect")
+                .attr("x", bbox.x - 4).attr("y", bbox.y - 4)
+                .attr("width", bbox.width + 8).attr("height", bbox.height + 8);
+        });
+
+        // Nodes
+        const node = g.append("g").attr("class", "nodes")
+            .selectAll("foreignObject")
+            .data(data.nodes)
+            .join("foreignObject")
+            .attr("width", 100).attr("height", 80)
+            .call(d3.drag()
+                .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+                .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+        node.append("xhtml:div")
+            .attr("class", d => `node-container type-${d.type}`)
+            .html(d => {
+                let html = `<div class="node-name">${d.name}</div>`;
+                if (d.desc) html += `<div class="node-detail">${d.desc}</div>`;
+                if (d.craftCost) html += `<div class="craft-cost">🔨 ${d.craftCost} ${CURRENCIES.CRAFT.name}</div>`;
+                if (d.type === 'shop') {
+                    const curr = CURRENCIES[d.currency];
+                    html += `<div class="node-detail" style="color:${curr.color}">Accepts: ${curr.name}</div>`;
+                }
+                return html;
+            });
+
+        simulation.on("tick", () => {
+            node.attr("x", d => d.x - 50).attr("y", d => d.y - 40);
+            linkPath.attr("d", d => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`);
+            linkLabelGroup.attr("transform", d => `translate(${(d.source.x + d.target.x) / 2}, ${(d.source.y + d.target.y) / 2})`);
+        });
+    })();
+
+    // ==========================================
+    // PART B: CALCULATOR & DATABASE LOGIC
+    // ==========================================
+    
+    // --- 1. Data Loading ---
+    let allData = {};
+    let customRecipes = [];
+
+    // Mock loading since no external JSON/CSV provided in prompt
+    // In a real scenario, this fetches files. Here we enable the UI to work with custom recipes immediately.
+    document.getElementById("csv-output").innerHTML = `<p><em>Database offline (External CSVs not found).<br>Use the "Add Recipe" button in the Calculator to test logic manually.</em></p>`;
+    
+    // --- 2. Calculator Logic ---
+    
+    function updateItemDropdown(){
+      const select = document.getElementById("calc-item");
+      const prevVal = select.value;
+      select.innerHTML = "";
+      const itemsSet = new Set();
+      
+      // Add items from the D3 data for demonstration
+      ["Iron Ore", "Oak Wood", "Arcane Flux", "Steel Bar", "Reinforced Hilt", "Void Gem", "Blade of Eternity"].forEach(i => itemsSet.add(i));
+
+      customRecipes.forEach(r=>{
+        if(r.to) itemsSet.add(r.to);
+        if(r.from) r.from.split("+").forEach(f=>itemsSet.add(f.trim()));
+      });
+
+      [...itemsSet].sort().forEach(i=>{
+        const opt = document.createElement("option");
+        opt.value=i; opt.textContent=i;
+        select.appendChild(opt);
+      });
+      if(itemsSet.has(prevVal)) select.value = prevVal;
+    }
+
+    function renderUserRecipes(){
+      const tbody = document.querySelector("#user-recipes tbody");
+      tbody.innerHTML = "";
+      customRecipes.forEach((r,idx)=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td><select style="width:80px"><option>CRAFT</option><option ${r.action==='STORE'?'selected':''}>STORE</option></select></td>
+                        <td><input value="${r.cin||'1'}" style="width:40px"></td>
+                        <td><input value="${r.from||''}"></td>
+                        <td><input value="${r.cout||'1'}" style="width:40px"></td>
+                        <td><input value="${r.to||''}"></td>
+                        <td><input value="${r.cost||''}"></td>
+                        <td><button class="remove-recipe">×</button></td>`;
+        tbody.appendChild(tr);
+
+        // Update logic
+        const inputs = tr.querySelectorAll("input, select");
+        inputs.forEach(inp => inp.oninput = () => {
+             r.action = inputs[0].value;
+             r.cin = inputs[1].value;
+             r.from = inputs[2].value;
+             r.cout = inputs[3].value;
+             r.to = inputs[4].value;
+             r.cost = inputs[5].value;
+             updateItemDropdown();
+             calculateAll();
+        });
+
+        tr.querySelector(".remove-recipe").onclick = ()=>{
+          customRecipes.splice(idx,1);
+          renderUserRecipes();
+          updateItemDropdown();
+          calculateAll();
+        };
+      });
+    }
+
+    document.getElementById("add-user-recipe").onclick = ()=>{
+      customRecipes.push({action:"CRAFT",cin:"1",from:"Iron Ore",cout:"1",to:"Steel Bar",cost:"10"});
+      renderUserRecipes();
+      updateItemDropdown();
+      calculateAll();
+    };
+
+    // Calculation Core
+    function resolveItemFull(item, amount, recipes, inv, path=[], seen=new Set()){
+        const name=item.toLowerCase();
+        if(seen.has(name+amount)) return {needs:{}, paths:[]}; 
+        seen.add(name+amount);
+
+        const result = {needs:{}, paths:[]};
+        const owned = inv[name]||0;
+        if(owned>=amount){ inv[name]-=amount; return result; }
+        amount -= owned; inv[name]=0;
+
+        const prod = recipes.filter(r=>r.to?.toLowerCase()===name);
+        if(prod.length===0){ 
+            result.needs[item]=amount;
+            result.paths.push(path.concat(`${amount}x ${item}`));
+            return result;
+        }
+
+        // Just take the first valid recipe for simplicity in this demo
+        const r = prod[0];
+        const perOut = parseInt(r.cout) || 1;
+        const batches = Math.ceil(amount/perOut);
+        
+        let newPath = path.slice();
+        newPath.push(`${r.action}: ${r.cin}x ${r.from} -> ${r.cout}x ${r.to}`);
+        
+        let subNeeds = {};
+        let subPaths = [];
+        
+        if(r.action === 'STORE') {
+             // If it's a store, we just need the money/currency, so we stop recursing for ingredients
+             result.needs[`${item} (Buy)`] = amount * (parseFloat(r.cost)||0);
+             newPath.push(`Buy ${amount}x for ${amount * (parseFloat(r.cost)||0)}`);
+             result.paths.push(newPath);
+        } else if(r.from){
+            // It's a craft
+            r.from.split("+").forEach(f=>{
+                const qty = (parseInt(r.cin)||1) * batches;
+                const sub = resolveItemFull(f.trim(), qty, recipes, inv, newPath, seen);
+                Object.keys(sub.needs).forEach(k=>subNeeds[k]=(subNeeds[k]||0)+sub.needs[k]);
+                subPaths = subPaths.concat(sub.paths);
+            });
+            Object.keys(subNeeds).forEach(k=>result.needs[k]=(result.needs[k]||0)+subNeeds[k]);
+            result.paths = result.paths.concat(subPaths.length?subPaths:[newPath]);
+        }
+        return result;
+    }
+
+    function calculateAll(){
+        try {
+            document.getElementById("calc-debug").innerHTML = "";
+            const target = document.getElementById("calc-item").value;
+            if(!target) return;
+            const amount = parseInt(document.querySelector(".calc-amount").value)||1;
+            
+            // Collect recipes (We use customRecipes + a few hardcoded for demo since CSV is missing)
+            let allRecipes = [...customRecipes];
+            // Add D3 data as recipes for calculation demo
+            allRecipes.push({action:"CRAFT", from:"Iron Ore", cin:"3", to:"Steel Bar", cout:"3", cost:"10"});
+            allRecipes.push({action:"CRAFT", from:"Arcane Flux", cin:"1", to:"Steel Bar", cout:"1", cost:"10"});
+            allRecipes.push({action:"CRAFT", from:"Steel Bar+Reinforced Hilt+Void Gem", cin:"1", to:"Blade of Eternity", cout:"1", cost:"500"});
+
+            const res = resolveItemFull(target, amount, allRecipes, {});
+
+            // Render Results
+            const rows = Object.entries(res.needs).map(([k,v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+            document.getElementById("calc-results").innerHTML = `<table><thead><tr><th>Resource Needed</th><th>Amount/Cost</th></tr></thead><tbody>${rows || '<tr><td colspan="2">In Stock / No Recipe</td></tr>'}</tbody></table>`;
+
+            document.getElementById("calc-recipe-paths").innerHTML = res.paths.map(p => `<p style="padding:5px; background:rgba(0,0,0,0.2); border-radius:4px;">${p.join(" <span style='color:#777'>&rarr;</span> ")}</p>`).join("");
+        } catch(e) {
+            document.getElementById("calc-debug").textContent = "Error: " + e.message;
+        }
+    }
+
+    // Modal Logic
+    document.addEventListener("click", e => {
+        if(e.target.id === "modal-close" || e.target == document.getElementById("item-modal")) {
+            document.getElementById("item-modal").classList.add("hidden");
+        }
+    });
+
+    // Init
+    updateItemDropdown();
+    document.querySelectorAll(".calc-amount, .calc-have").forEach(el => el.oninput = calculateAll);
+    calculateAll();
+
+</script>
+</body>
+</html>
