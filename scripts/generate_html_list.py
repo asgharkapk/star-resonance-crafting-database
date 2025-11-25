@@ -1,34 +1,25 @@
 import os
 import json
 
-DATA_DIR = "data"
-INDEX_FILE = os.path.join(DATA_DIR, "html.json")
+INDEX_FILE = "html.json"
 
 def generate_index_json():
-    if not os.path.exists(DATA_DIR):
-        print(f"Error: '{DATA_DIR}' folder does not exist.")
-        return
+    html_files = []
 
-    # List all HTML files
-    html_files = [f for f in os.listdir(DATA_DIR)
-                  if f.lower().endswith((".html", ".htm")) and os.path.isfile(os.path.join(DATA_DIR, f))]
+    for root, dirs, files in os.walk("."):
+        for f in files:
+            if f.lower().endswith((".html", ".htm")):
+                # store path like folder/file.html
+                html_files.append(os.path.relpath(os.path.join(root, f)))
 
-    if not html_files:
-        print("No HTML files found in data folder.")
-
-    # Optional: sort alphabetically
     html_files.sort()
 
-    # Prepare JSON structure
-    index_data = {"files": html_files}
+    with open(INDEX_FILE, "w", encoding="utf-8") as out:
+        json.dump({"files": html_files}, out, indent=2)
 
-    # Write to index.json
-    with open(INDEX_FILE, "w", encoding="utf-8") as f:
-        json.dump(index_data, f, indent=2)
-
-    print(f"index.json generated successfully with {len(html_files)} file(s):")
+    print(f"html.json generated with {len(html_files)} files:")
     for f in html_files:
-        print(f" - {f}")
+        print(" -", f)
 
 if __name__ == "__main__":
     generate_index_json()
