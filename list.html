@@ -3,163 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML File Index</title>
+    <title>Site Index</title>
     <style>
-        /* --- CSS STYLING --- */
         :root {
-            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --card-bg: rgba(255, 255, 255, 0.15);
-            --item-bg: rgba(255, 255, 255, 0.25);
-            --hover-color: #fff;
+            --bg-gradient: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --item-bg: rgba(255, 255, 255, 0.1);
             --text-main: #ffffff;
+            --accent: #00d2ff;
         }
 
         body {
             margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 40px;
+            font-family: 'Segoe UI', sans-serif;
             background: var(--bg-gradient);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             color: var(--text-main);
+            min-height: 100vh;
         }
 
         .container {
-            width: 90%;
-            max-width: 600px;
-            background: var(--card-bg);
-            backdrop-filter: blur(12px); /* Glass effect */
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            padding: 2rem;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            max-width: 800px;
+            margin: 0 auto;
         }
 
         h1 {
             text-align: center;
-            margin-bottom: 1.5rem;
             font-weight: 300;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+            margin-bottom: 40px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 20px;
         }
 
-        #file-list {
+        /* Search Bar */
+        #search {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        ul {
             list-style: none;
             padding: 0;
-            margin: 0;
         }
 
-        .file-link {
-            display: block;
+        a {
+            display: flex;
+            justify-content: space-between;
             text-decoration: none;
             color: var(--text-main);
             background: var(--item-bg);
             padding: 15px 20px;
-            margin-bottom: 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .file-link:hover {
-            background: rgba(255, 255, 255, 0.4);
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .file-link:active {
-            transform: scale(0.98);
-        }
-
-        .icon {
-            font-size: 1.2rem;
-            opacity: 0.8;
-        }
-
-        .loading, .error {
-            text-align: center;
-            padding: 20px;
-            font-style: italic;
-            opacity: 0.8;
-        }
-        
-        .error {
-            color: #ffcccc;
-            background: rgba(255, 0, 0, 0.2);
+            margin-bottom: 10px;
             border-radius: 8px;
+            transition: 0.2s;
+            border-left: 4px solid transparent;
+        }
+
+        a:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-left: 4px solid var(--accent);
+            padding-left: 25px;
+        }
+
+        .path {
+            font-size: 0.85em;
+            opacity: 0.6;
+            margin-right: 15px;
+        }
+
+        .filename {
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Directory Index</h1>
-        <div id="content-area">
-            <div class="loading">Loading files...</div>
-        </div>
+        <h1>Project Index</h1>
+        
+        <!-- Search input for quick filtering -->
+        <input type="text" id="search" placeholder="Type to filter files...">
+
+        <div id="content-area">Loading...</div>
     </div>
 
     <script>
-        // --- JAVASCRIPT LOGIC ---
-        
-        // Configuration: Change this if your JSON file is named differently
-        const JSON_PATH = 'data/html.json'; 
-        const DATA_FOLDER = 'data/';
+        // MATCHING CONFIGURATION FOR YOUR PYTHON SCRIPT
+        const JSON_PATH = 'data/html.json'; // The python script saves it in the root now
 
         async function loadFiles() {
-            const contentArea = document.getElementById('content-area');
-
+            const content = document.getElementById('content-area');
             try {
-                // Fetch the JSON file
                 const response = await fetch(JSON_PATH);
+                if (!response.ok) throw new Error("html.json not found");
                 
-                if (!response.ok) {
-                    throw new Error(`Could not find ${JSON_PATH} (Status: ${response.status})`);
-                }
-
                 const data = await response.json();
-                
-                // Clear loading message
-                contentArea.innerHTML = '<ul id="file-list"></ul>';
-                const list = document.getElementById('file-list');
+                const files = data.files;
 
-                if (data.files && data.files.length > 0) {
-                    data.files.forEach(filename => {
-                        // Create list item
-                        const li = document.createElement('li');
-                        
-                        // Create link
-                        const a = document.createElement('a');
-                        a.href = DATA_FOLDER + filename; 
-                        a.className = 'file-link';
-                        
-                        // Add text and a decorative icon arrow
-                        a.innerHTML = `
-                            <span>${filename}</span>
-                            <span class="icon">➜</span>
-                        `;
-
-                        li.appendChild(a);
-                        list.appendChild(li);
-                    });
-                } else {
-                    contentArea.innerHTML = '<div class="error">No files found in JSON.</div>';
+                if (!files || files.length === 0) {
+                    content.innerHTML = "No files found.";
+                    return;
                 }
+
+                renderList(files);
+
+                // Setup Search Filter
+                document.getElementById('search').addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    const filtered = files.filter(f => f.toLowerCase().includes(term));
+                    renderList(filtered);
+                });
 
             } catch (error) {
-                console.error(error);
-                contentArea.innerHTML = `<div class="error">Error: ${error.message}<br><small>Make sure you ran the Python script and the JSON file exists.</small></div>`;
+                content.innerHTML = `<div style="color:#ff6b6b">Error: ${error.message}</div>`;
             }
         }
 
-        // Run the function when page loads
-        document.addEventListener('DOMContentLoaded', loadFiles);
+        function renderList(files) {
+            const content = document.getElementById('content-area');
+            let html = '<ul>';
+            
+            files.forEach(filePath => {
+                // Split path to show folder nicely
+                // Windows paths might need replace('\\', '/') but python relpath usually handles it
+                const parts = filePath.split('/');
+                const name = parts.pop();
+                const folder = parts.length > 0 ? parts.join('/') + '/' : '';
+
+                html += `
+                    <li>
+                        <a href="${filePath}">
+                            <span class="path">${folder}</span>
+                            <span class="filename">${name}</span>
+                        </a>
+                    </li>
+                `;
+            });
+            
+            html += '</ul>';
+            content.innerHTML = html;
+        }
+
+        loadFiles();
     </script>
 </body>
 </html>
