@@ -154,6 +154,12 @@ button:hover { background: var(--accent); color: black; }
     let globalRecipes = []; 
     let allData = {}; // For table categorization
 
+function cleanId(str){
+    return (str || "")
+        .trim()
+        .replace(/\s+/g, " ");   // collapse weird spacing
+}
+  
     function makeClickableCell(text){
         if(!text) return "";
         return `<span class="item-link" onclick="openModal('${text}')">${text}</span>`;
@@ -299,40 +305,54 @@ button:hover { background: var(--accent); color: black; }
     // ===============================================
     // 3. D3 VISUALIZER
     // ===============================================
-    function processDataForGraph() {
-        const nodes = [];
-        const links = [];
-        const nodeSet = new Set();
+function processDataForGraph() {
+    const nodes = [];
+    const links = [];
+    const nodeSet = new Set();
 
-        // Calculate rarity/tier first
-        // (Simplified tier logic for demo)
-        
-        globalRecipes.forEach(r => {
-            if(r.to && !nodeSet.has(r.to)) {
-                nodes.push({ id: r.to, name: r.to, type: "item", tier: 1 });
-                nodeSet.add(r.to);
+    globalRecipes.forEach(r => {
+        const to = cleanId(r.to);
+        const action = (r.action || "").trim();
+        const fromRaw = cleanId(r.from);
+
+        // Create output node
+        if(to && !nodeSet.has(to)) {
+            nodes.push({ id: to, name: to, type: "item", tier: 1 });
+            nodeSet.add(to);
+        }
+
+        // ---- STORE ----
+        if(action === "STORE") {
+            let shopName = cleanId(r.from);
+            let shopId = "SHOP_" + shopName.replace(/\s/g,'');
+
+            if(!nodeSet.has(shopId)) {
+                nodes.push({ id: shopId, name: shopName, type: "shop", tier: 0 });
+                nodeSet.add(shopId);
             }
-            if(r.action === 'STORE') {
-                let shopId = "SHOP_" + (r.from || "Market").replace(/\s/g,'');
-                if(!nodeSet.has(shopId)) {
-                    nodes.push({ id: shopId, name: r.from||"Market", type: "shop", tier: 0 });
-                    nodeSet.add(shopId);
+
+            links.push({ source: shopId, target: to, type: "buy", label: r.cost });
+        }
+
+        // ---- CRAFT ----
+        else if (fromRaw) {
+            fromRaw.split("+").forEach(ingredient => {
+                const ing = cleanId(ingredient);
+                
+                if(!ing) return; // ignore empty ingredients (prevents crash)
+
+                if(!nodeSet.has(ing)) {
+                    nodes.push({ id: ing, name: ing, type: "item", tier: 0 });
+                    nodeSet.add(ing);
                 }
-                links.push({ source: shopId, target: r.to, type: 'buy', label: r.cost });
-            } else if (r.from) {
-                r.from.split("+").forEach(ing => {
-                    ing = ing.trim();
-                    if(!nodeSet.has(ing)) {
-                        nodes.push({ id: ing, name: ing, type: "item", tier: 0 });
-                        nodeSet.add(ing);
-                    }
-                    links.push({ source: ing, target: r.to, type: 'craft' });
-                });
-            }
-        });
 
-        drawGraph(nodes, links);
-    }
+                links.push({ source: ing, target: to, type: 'craft' });
+            });
+        }
+    });
+
+    drawGraph(nodes, links);
+}
 
     function drawGraph(nodes, links) {
         const container = document.getElementById("viz-container");
