@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Resonance: Dynamic DB</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+    /* --- CSS VARIABLES & RESET --- */
+    :root { 
+        --bg-dark: #0a0c16; 
+        --bg-panel: #131620;
+        --accent: #00c8ff; 
+        --accent-sec: #f1c40f;
+        --text: #f0f3ff; 
+        --border: #333;
+    }
+    body { background: #05060e; color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    
+    /* --- LAYOUT --- */
+    #app-container { display: flex; flex: 1; height: 100%; overflow: hidden; }
+    
+    /* SIDEBAR */
+    aside { width: 260px; background: #0e101a; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; z-index: 20; }
+    .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
+    .sidebar-section { padding: 10px; overflow-y: auto; flex: 1; }
+    .file-list-item { 
+        padding: 8px 12px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; font-size: 0.9em; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;
+    }
+    .file-list-item:hover { background: rgba(255,255,255,0.05); }
+    .file-list-item.active { background: rgba(0, 200, 255, 0.1); color: var(--accent); border-left: 3px solid var(--accent); }
+    
+    /* MAIN CONTENT */
+    main { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; background: radial-gradient(circle at top right, #111428, #05060e); position: relative; }
+    
+    /* COMPONENTS */
+    h2 { margin: 0 0 15px 0; font-size: 1.2rem; color: var(--accent); border-bottom: 1px solid #333; padding-bottom: 5px; }
+    section { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    
+    /* INPUTS */
+    input, select { background: #000; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+    input:focus { border-color: var(--accent); outline: none; }
+    
+    /* BUTTONS & TOGGLES */
+    .btn-group { display: flex; gap: 10px; margin-bottom: 10px; }
+    button { background: #222; border: 1px solid #444; color: #ccc; padding: 6px 12px; cursor: pointer; border-radius: 4px; transition: 0.2s; }
+    button:hover { background: var(--accent); color: #000; }
+    button.active { background: var(--accent); color: #000; font-weight: bold; border-color: var(--accent); }
+
+    /* VISUALIZER */
+    #viz-wrapper { width: 100%; height: 500px; background: #000; border-radius: 6px; overflow: hidden; position: relative; border: 1px solid #333; }
+    .node-label { font-size: 10px; pointer-events: none; text-anchor: middle; fill: white; text-shadow: 0 1px 2px black; font-family: sans-serif; }
+    .link-label { font-size: 9px; fill: #aaa; text-anchor: middle; dominant-baseline: middle; pointer-events: none;}
+    .link-label-bg { fill: #0a0c16; stroke: #333; stroke-width:0.5px; rx: 4; } 
+
+    /* CALCULATOR */
+    #calc-results { margin-top: 15px; font-size: 0.95em; line-height: 1.5; }
+    .calc-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #222; }
+    .calc-row:last-child { border-bottom: none; }
+    .calc-total { color: var(--accent-sec); font-weight: bold; }
+
+    /* TABLES */
+    table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+    th { text-align: left; color: var(--accent); padding: 8px; border-bottom: 1px solid #444; position: sticky; top: 0; background: #131620; z-index: 2; }
+    td { padding: 6px 8px; border-bottom: 1px solid #222; color: #ccc; }
+    tr:hover td { background: rgba(255,255,255,0.03); color: white; }
+    
+    /* NEW: Clickable Table Cells */
+    td.interactive-cell { cursor: pointer; color: var(--accent); font-weight: 600; transition: 0.2s; }
+    td.interactive-cell:hover { background: rgba(0, 200, 255, 0.2); text-decoration: underline; }
+
+    /* SEARCH RESULTS */
+    #search-results { position: absolute; background: #1a1d29; border: 1px solid #444; width: 100%; max-height: 200px; overflow-y: auto; z-index: 100; display: none; margin-top: 2px; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.8); left: 0; box-sizing: border-box; }
+    .search-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #222; }
+    .search-item:hover { background: var(--accent); color: black; }
+
+</style>
+</head>
+<body>
+
+<div id="app-container">
+    <!-- LEFT SIDEBAR -->
+    <aside>
+        <div class="sidebar-header">
+            <h3 style="margin:0; color:white; margin-bottom: 10px;">Star Resonance</h3>
+            <div style="position:relative;">
+                <input type="text" id="global-search" placeholder="Search Item..." autocomplete="off">
+                <div id="search-results"></div>
+            </div>
+        </div>
+        
+        <div class="sidebar-section">
+            <h4 style="color:#777; margin-top:0;">Loaded Files</h4>
+            <div id="file-list">Loading...</div>
+        </div>
+    </aside>
+
+    <!-- RIGHT MAIN -->
+    <main>
+        <!-- 1. VISUALIZER -->
+        <section id="viz-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap: wrap; gap:10px;">
+                <h2 style="margin:0; border:none;">Dependency Graph</h2>
+                <div class="btn-group" style="margin:0;">
+                    <button id="btn-upstream" class="active" onclick="setGraphMode('upstream')">Recipe (Source)</button>
+                    <button id="btn-downstream" onclick="setGraphMode('downstream')">Usage (Target)</button>
+                </div>
+            </div>
+            <div id="selected-item-display" style="color:var(--accent); font-weight:bold; margin-bottom:5px; height: 20px;"></div>
+            <div id="viz-wrapper"><div id="viz-container" style="width:100%; height:100%;"></div></div>
+            <div style="font-size: 0.8em; color: #777; margin-top: 5px; display:flex; justify-content:space-between;">
+                <span>* Drag nodes to rearrange. Scroll to zoom.</span>
+                <span style="color:var(--accent)">* Tip: Click any node to focus on it.</span>
+            </div>
+        </section>
+
+        <!-- 2. CALCULATOR -->
+        <section id="calc-section">
+            <h2>Auto-Calculator</h2>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; background: rgba(0,0,0,0.3); padding:10px; border-radius:6px;">
+                <label>Target:</label>
+                <input type="text" id="calc-item-name" disabled style="width:200px; color:#aaa; cursor: not-allowed;" value="No Item Selected">
+                <label>Amount:</label>
+                <input type="number" id="calc-amount" value="1" min="1" style="width:80px">
+            </div>
+            <div id="calc-results">Select an item to see requirements.</div>
+        </section>
+
+        <!-- 3. DATA VIEWER -->
+        <section id="data-section">
+            <h2 id="table-title">Raw Data</h2>
+            <div id="table-container" style="max-height: 400px; overflow: auto; border: 1px solid #222; border-radius: 4px;">
+                <div style="padding:20px; color:#666; text-align:center;">Select a file from the sidebar to view data.</div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+    // ===============================================
+    // STATE & CONFIG
+    // ===============================================
+    const STATE = {
+        allRecipes: [],      // Flat list of all rows
+        fileData: {},        // { "filename.csv": [rows] }
+        files: [],           // List of filenames
+        
+        selectedItem: null,  // Current Item focused
+        graphMode: 'upstream', // 'upstream' or 'downstream'
+        simulation: null
+    };
+
+    // ===============================================
+    // 1. DATA LOADING
+    // ===============================================
+    async function loadAllCSVs(){
+        const DATA_DIR = "../data";
+        const fileListEl = document.getElementById("file-list");
+        fileListEl.innerHTML = "";
+
+        try {
+            const resp = await fetch(`${DATA_DIR}/index.json`);
+            let filesToLoad = [];
+
+            if(resp.ok) {
+                const data = await resp.json();
+                filesToLoad = data.files;
+            } else {
+                throw new Error("Index not found");
+            }
+
+            STATE.files = filesToLoad;
+
+            for(const file of filesToLoad){
+                try {
+                    const res = await fetch(`${DATA_DIR}/${file}`);
+                    if(!res.ok) continue;
+                    const text = await res.text();
+                    const rows = parseCSV(text);
+                    
+                    STATE.fileData[file] = rows;
+                    STATE.allRecipes.push(...rows);
+                    
+                    const div = document.createElement("div");
+                    div.className = "file-list-item";
+                    div.innerHTML = `<span>${file}</span> <small style="color:#555">${rows.length}</small>`;
+                    div.onclick = () => showTable(file, div);
+                    fileListEl.appendChild(div);
+                } catch(err) {
+                    console.error(`Failed to parse ${file}`, err);
+                }
+            }
+            
+            // Auto-select first craftable item
+            const firstItem = STATE.allRecipes.find(r => r.action === 'CRAFT')?.to;
+            if(firstItem) selectItem(firstItem);
+
+        } catch(e) {
+            useDemoData();
+        }
+    }
+
+    function parseCSV(text) {
+        const lines = text.trim().split("\n");
+        if(lines.length < 2) return [];
+        const headers = lines[0].split(",").map(h=>h.trim());
+        
+        return lines.slice(1).map(line => {
+            if(!line.trim()) return null; 
+            const values = line.split(","); 
+            const row = {};
+            headers.forEach((h,i) => row[h] = values[i]?.trim() || "");
+            return row;
+        }).filter(r => r !== null);
+    }
+
+    function useDemoData(){
+        const demo = [
+            {action:"STORE", to:"Iron Ore", cost:"5", currency:"Gold", from:"Blacksmith"},
+            {action:"STORE", to:"Wood", cost:"2", currency:"Gold", from:"Lumberjack"},
+            {action:"STORE", to:"Flux", cost:"10", currency:"Gold", from:"Alchemist"},
+            {action:"CRAFT", from:"Iron Ore", cin:"2", to:"Iron Bar", cout:"1", cost:"2"},
+            {action:"CRAFT", from:"Wood", cin:"3", to:"Plank", cout:"2", cost:"1"},
+            {action:"CRAFT", from:"Iron Bar+Plank", cin:"2+1", to:"Sword", cout:"1", cost:"50"},
+            {action:"CRAFT", from:"Sword+Flux", cin:"1+2", to:"Magic Sword", cout:"1", cost:"500"}
+        ];
+        
+        STATE.fileData["demo_data.csv"] = demo;
+        STATE.allRecipes = demo;
+        STATE.files = ["demo_data.csv"];
+        
+        const fileListEl = document.getElementById("file-list");
+        fileListEl.innerHTML = `<div class="file-list-item" onclick="showTable('demo_data.csv', this)">demo_data.csv (Demo)</div>`;
+        selectItem("Magic Sword");
+    }
+
+    // ===============================================
+    // 2. UI INTERACTIONS
+    // ===============================================
+    
+    // Sidebar Table View
+    function showTable(filename, element) {
+        document.querySelectorAll(".file-list-item").forEach(e => e.classList.remove("active"));
+        if(element) element.classList.add("active");
+
+        const rows = STATE.fileData[filename];
+        const container = document.getElementById("table-container");
+        document.getElementById("table-title").innerText = filename;
+
+        if(!rows || rows.length === 0) {
+            container.innerHTML = "<div style='padding:20px'>Empty file</div>"; return;
+        }
+
+        const headers = Object.keys(rows[0]);
+        let html = `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>`;
+        
+        // --- NEW LOGIC: Make 'to' column clickable ---
+        html += rows.map(r => `<tr>${headers.map(h => {
+            const val = r[h];
+            // If the header is 'to', make it clickable
+            if(h === 'to' && val) {
+                return `<td class="interactive-cell" onclick="selectItem('${val}')">🔍 ${val}</td>`;
+            }
+            return `<td>${val}</td>`;
+        }).join("")}</tr>`).join("");
+        
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    }
+
+    // Search Logic
+    const searchInput = document.getElementById("global-search");
+    const searchRes = document.getElementById("search-results");
+
+    document.addEventListener('click', function(event) {
+        if (!searchInput.contains(event.target) && !searchRes.contains(event.target)) {
+            searchRes.style.display = 'none';
+        }
+    });
+
+    searchInput.addEventListener("input", (e) => {
+        const val = e.target.value.toLowerCase();
+        searchRes.innerHTML = "";
+        if(val.length < 1) { searchRes.style.display = "none"; return; }
+
+        const items = new Set();
+        STATE.allRecipes.forEach(r => {
+            if(r.to) items.add(r.to);
+            if(r.from) r.from.split("+").forEach(x => items.add(x.trim()));
+        });
+
+        const matches = [...items].filter(i => i.toLowerCase().includes(val)).sort();
+        
+        if(matches.length > 0) {
+            searchRes.style.display = "block";
+            matches.slice(0, 10).forEach(m => {
+                const div = document.createElement("div");
+                div.className = "search-item";
+                div.innerText = m;
+                div.onclick = () => {
+                    selectItem(m);
+                    searchInput.value = "";
+                    searchRes.style.display = "none";
+                };
+                searchRes.appendChild(div);
+            });
+        } else {
+            searchRes.style.display = "none";
+        }
+    });
+
+    // Main Selection Logic
+    function selectItem(itemName) {
+        if(!itemName) return;
+        STATE.selectedItem = itemName;
+        
+        document.getElementById("selected-item-display").innerHTML = `Active: <span style="color:white; font-size:1.2em">${itemName}</span>`;
+        document.getElementById("calc-item-name").value = itemName;
+        
+        refreshGraph();
+        calculateAuto();
+    }
+
+    function setGraphMode(mode) {
+        STATE.graphMode = mode;
+        document.getElementById("btn-upstream").className = mode === 'upstream' ? "active" : "";
+        document.getElementById("btn-downstream").className = mode === 'downstream' ? "active" : "";
+        refreshGraph();
+    }
+
+    document.getElementById("calc-amount").addEventListener("input", calculateAuto);
+
+    // ===============================================
+    // 3. GRAPH LOGIC
+    // ===============================================
+    function refreshGraph() {
+        if(!STATE.selectedItem) return;
+        
+        const nodes = [];
+        const links = [];
+        const visited = new Set(); 
+        
+        function buildUpstream(item, path = new Set()) {
+            if(visited.has(item)) return;
+            visited.add(item);
+            if(path.has(item)) return; 
+            const newPath = new Set(path).add(item);
+
+            if(!nodes.find(n=>n.id===item)) {
+                nodes.push({ id: item, type: "item" });
+            }
+
+            const recipes = STATE.allRecipes.filter(r => r.to === item);
+            
+            recipes.forEach(r => {
+                if(r.action === 'STORE') {
+                    const shopId = "Shop: " + (r.from || "General");
+                    if(!nodes.find(n=>n.id===shopId)) nodes.push({id: shopId, type: "shop"});
+                    links.push({ source: shopId, target: item, label: `${r.cost} ${r.currency}` });
+                } else {
+                    const ingredients = r.from.split("+");
+                    const quantities = (r.cin || "").split("+");
+                    ingredients.forEach((ing, idx) => {
+                        ing = ing.trim();
+                        const qty = quantities[idx] || 1;
+                        links.push({ source: ing, target: item, label: `${qty}x` });
+                        buildUpstream(ing, newPath);
+                    });
+                }
+            });
+        }
+
+        function buildDownstream(item, path = new Set()) {
+            if(visited.has(item)) return;
+            visited.add(item);
+            if(path.has(item)) return;
+            const newPath = new Set(path).add(item);
+
+            if(!nodes.find(n=>n.id===item)) nodes.push({id: item, type: "item"});
+
+            const recipes = STATE.allRecipes.filter(r => {
+                if(!r.from) return false;
+                const parts = r.from.split("+").map(x=>x.trim());
+                return parts.includes(item);
+            });
+
+            recipes.forEach(r => {
+                const product = r.to;
+                const ingParts = r.from.split("+").map(x=>x.trim());
+                const qtyParts = (r.cin||"").split("+");
+                const idx = ingParts.indexOf(item);
+                const qty = qtyParts[idx] || "1";
+
+                links.push({ source: item, target: product, label: `${qty}x` });
+                buildDownstream(product, newPath);
+            });
+        }
+
+        if(STATE.graphMode === 'upstream') {
+            buildUpstream(STATE.selectedItem);
+        } else {
+            buildDownstream(STATE.selectedItem);
+        }
+
+        drawD3(nodes, links);
+    }
+
+    function drawD3(nodes, links) {
+        const container = document.getElementById("viz-container");
+        container.innerHTML = ""; 
+        if(STATE.simulation) STATE.simulation.stop();
+
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        const svg = d3.select("#viz-container").append("svg")
+            .attr("width", "100%").attr("height", "100%")
+            .attr("viewBox", [0, 0, width, height]);
+
+        const g = svg.append("g");
+
+        const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", (e) => g.attr("transform", e.transform));
+        svg.call(zoom);
+
+        // Define Arrow
+        const defs = svg.append("defs");
+        defs.append("marker").attr("id", "arrow").attr("viewBox", "0 -5 10 10")
+            .attr("refX", 18).attr("refY", 0).attr("markerWidth", 6).attr("markerHeight", 6)
+            .attr("orient", "auto").append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#555");
+
+        STATE.simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+            .force("charge", d3.forceManyBody().strength(-400))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collide", d3.forceCollide(30));
+
+        const link = g.append("g").selectAll("path").data(links).enter().append("path")
+            .attr("stroke", "#444").attr("stroke-width", 1.5).attr("fill", "none")
+            .attr("marker-end", "url(#arrow)");
+
+        const linkLabelGroup = g.append("g").selectAll("g").data(links).enter().append("g");
+        const linkLabelRect = linkLabelGroup.append("rect").attr("class", "link-label-bg").attr("height", 14).attr("rx", 3);
+        const linkLabelText = linkLabelGroup.append("text").attr("class", "link-label").text(d => d.label).attr("dy", 1);
+
+        linkLabelText.each(function(d) { d.bboxWidth = this.getBBox().width + 10; });
+        linkLabelRect.attr("width", d => d.bboxWidth).attr("x", d => -d.bboxWidth/2).attr("y", -7);
+
+        // --- NEW LOGIC: Clickable Nodes ---
+        const node = g.append("g").selectAll("circle")
+            .data(nodes).enter().append("circle")
+            .attr("r", d => d.id === STATE.selectedItem ? 8 : 5)
+            .attr("fill", d => d.type === 'shop' ? '#f1c40f' : (d.id === STATE.selectedItem ? '#00c8ff' : '#eee'))
+            .attr("stroke", "#000").attr("stroke-width", 1.5)
+            .style("cursor", "pointer") // Cursor indicates clickability
+            .on("click", (event, d) => {
+                // Clicking a node selects it
+                selectItem(d.id);
+            })
+            .call(d3.drag()
+                .on("start", (e,d)=>{ if(!e.active) STATE.simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+                .on("drag", (e,d)=>{ d.fx=e.x; d.fy=e.y; })
+                .on("end", (e,d)=>{ if(!e.active) STATE.simulation.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+        const labels = g.append("g").selectAll("text").data(nodes).enter().append("text")
+            .attr("class", "node-label").text(d => d.id).attr("dy", -12);
+
+        STATE.simulation.on("tick", () => {
+            link.attr("d", d => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`);
+            node.attr("cx", d => d.x).attr("cy", d => d.y);
+            labels.attr("x", d => d.x).attr("y", d => d.y);
+            linkLabelGroup.attr("transform", d => `translate(${(d.source.x + d.target.x) / 2}, ${(d.source.y + d.target.y) / 2})`);
+        });
+        
+        const centerNode = nodes.find(n => n.id === STATE.selectedItem);
+        if(centerNode) {
+            centerNode.fx = width/2; centerNode.fy = height/2;
+            setTimeout(() => { centerNode.fx = null; centerNode.fy = null; }, 1000);
+        }
+    }
+
+    // ===============================================
+    // 4. CALCULATOR LOGIC
+    // ===============================================
+    function calculateAuto() {
+        const item = STATE.selectedItem;
+        const amount = parseFloat(document.getElementById("calc-amount").value) || 1;
+        const container = document.getElementById("calc-results");
+
+        if(!item) { container.innerHTML = "Select an item."; return; }
+
+        let rawMats = {};
+        let steps = [];
+        
+        function resolve(name, qty, path = new Set()) {
+            if(path.has(name)) { steps.push(`<span style="color:red">Cycle detected: ${name}</span>`); return; }
+            const newPath = new Set(path).add(name);
+
+            const recipe = STATE.allRecipes.find(r => r.to === name && r.action !== 'STORE');
+            const shop = STATE.allRecipes.find(r => r.to === name && r.action === 'STORE');
+
+            if(shop) {
+                let cost = parseFloat(shop.cost) * qty;
+                let key = `${shop.currency} (Shop: ${shop.from})`;
+                rawMats[key] = (rawMats[key] || 0) + cost;
+                steps.push(`Buy ${Math.round(qty*100)/100}x ${name}`);
+            } else if(recipe) {
+                let outQty = parseFloat(recipe.cout) || 1;
+                let batches = Math.ceil(qty / outQty);
+                let produced = batches * outQty;
+                const ings = recipe.from.split("+");
+                const quants = (recipe.cin || "").split("+");
+                ings.forEach((ing, i) => {
+                    let needed = (parseFloat(quants[i]) || 1) * batches;
+                    resolve(ing.trim(), needed, newPath);
+                });
+                steps.push(`Craft ${batches} batch(es) of [${recipe.to}] (Req: ${Math.round(qty*100)/100}, Yields: ${produced})`);
+            } else {
+                rawMats[name] = (rawMats[name] || 0) + qty;
+            }
+        }
+
+        resolve(item, amount);
+
+        let html = `<div style="margin-bottom:10px;"><strong>Shopping List:</strong></div>`;
+        const entries = Object.entries(rawMats);
+        if(entries.length === 0) html += `<div style="color:#777">No base materials needed.</div>`;
+        for(const [mat, qty] of entries) {
+            html += `<div class="calc-row"><span>${mat}</span> <span class="calc-total">${Math.round(qty*100)/100}</span></div>`;
+        }
+        
+        html += `<div style="margin-top:15px;"><strong>Process Steps (Bottom-up):</strong></div>
+                 <div style="font-size:0.85em; color:#aaa; max-height:120px; overflow-y:auto; padding-right:5px;">
+                 ${steps.reverse().map((s,i) => `<div>${i+1}. ${s}</div>`).join("")}
+                 </div>`;
+
+        container.innerHTML = html;
+    }
+
+    loadAllCSVs();
+
+</script>
+</body>
+</html>
