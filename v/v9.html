@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Resonance: Dynamic DB</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+    /* Dark Theme Styles */
+    :root { --bg-dark: #0a0c16; --accent: #00c8ff; --text: #f0f3ff; --panel: rgba(255,255,255,0.05); }
+    body { background: radial-gradient(circle at top, #111428, #05060e); color: var(--text); font-family: sans-serif; margin: 0; padding-bottom: 50px; }
+    
+    /* Layout */
+    header, nav { background: rgba(0,0,0,0.5); padding: 10px; text-align: center; border-bottom: 1px solid #333; }
+    nav a { margin: 0 10px; color: #888; text-decoration: none; font-weight: bold; }
+    nav a:hover { color: var(--accent); }
+    main { max-width: 1200px; margin: 20px auto; padding: 0 10px; }
+    section { background: var(--panel); border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #333; }
+    
+    /* D3 Graph */
+    #viz-wrapper { width: 100%; height: 500px; background: #000; border-radius: 8px; overflow: hidden; position: relative; }
+    .node-container { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; width: 100%; height: 100%; color: white; border-radius: 6px; border: 1px solid #555; font-size: 11px; padding: 2px; box-sizing: border-box;}
+    
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+    th, td { padding: 8px; border-bottom: 1px solid #333; text-align: left; }
+    th { color: var(--accent); background: rgba(255,255,255,0.05); }
+    tr:hover { background: rgba(255,255,255,0.02); }
+    
+    /* Inputs */
+    input, select, button { background: #111; border: 1px solid #555; color: white; padding: 5px; border-radius: 4px; }
+    button { cursor: pointer; background: #222; }
+    button:hover { background: var(--accent); color: black; }
+
+    /* Status Msg */
+    .status-warn { color: #f1c40f; margin-bottom: 10px; padding: 10px; border: 1px solid #f1c40f; border-radius: 4px; background: rgba(241, 196, 15, 0.1); }
+</style>
+</head>
+<body>
+  
+<div id="sidebar" style="
+    position:fixed; left:0; top:70px; bottom:0; width:200px;
+    background:#111; border-right:1px solid #333; padding:10px;
+    overflow-y:auto; color:white;">
+    <h3>CSV Files</h3>
+    <div id="file-list"></div>
+</div>
+<select id="viz-select" style="margin-bottom:10px;"></select>
+
+<header><h1>Star Resonance: Connected DB</h1></header>
+<nav>
+    <a href="#viz-section">Visualizer</a>
+    <a href="#calc-section">Calculator</a>
+    <a href="#data-section">Raw Data</a>
+</nav>
+
+<main>
+    <!-- 1. GRAPH SECTION -->
+    <section id="viz-section">
+        <h2>Economy Visualizer</h2>
+        <div id="viz-wrapper"><div id="viz-container" style="width:100%;height:100%"></div></div>
+    </section>
+
+    <!-- 2. CALCULATOR SECTION -->
+    <section id="calc-section">
+        <h2>Crafting Calculator</h2>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <select id="calc-item"><option>Loading...</option></select>
+            <input type="number" id="calc-amount" value="1" style="width:60px">
+            <button onclick="calculateAll()">Calculate</button>
+        </div>
+        <div id="calc-results"></div>
+    </section>
+
+    <!-- 3. DATA SECTION -->
+    <section id="data-section">
+        <h2>Database Content</h2>
+        <div id="status-msg"></div>
+        <div id="csv-output">Initializing...</div>
+    </section>
+</main>
+
+<script>
+/******************************************************************************
+  GLOBALS
+******************************************************************************/
+let globalRecipes = []; 
+let loadedFiles = [];
+
+/******************************************************************************
+  LOAD CSV SYSTEM
+******************************************************************************/
+async function loadCSV(path){
+    const res = await fetch(path);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const lines = text.trim().split("\n");
+    const headers = lines[0].split(",").map(h=>h.trim());
+    return lines.slice(1).map(line => {
+        const values = line.split(",");
+        const row = {};
+        headers.forEach((h,i)=> row[h] = values[i]?.trim() || "");
+        return row;
+    });
+}
+
+function createTableSectionSingle(container, filename, headers, rows){
+    container.innerHTML = `
+        <h3 style="color:#888; border-bottom:1px solid #444; margin-top:20px;">${filename}</h3>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
+                <tbody>${rows.map(r=>`<tr>${headers.map(h=>`<td>${r[h]||''}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table>
+        </div>`;
+}
+
+async function loadAllCSVs(){
+    const DATA_DIR = "../data";
+
+    try{
+        const resp = await fetch(`${DATA_DIR}/index.json`);
+        if(!resp.ok) throw new Error("Could not find data/index.json");
+
+        const {files} = await resp.json();
+        loadedFiles = files;
+
+        const sidebar = document.getElementById("file-list");
+        sidebar.innerHTML = "";
+
+        for(const file of files){
+            const rows = await loadCSV(`${DATA_DIR}/${file}`);
+
+            // Append to global list
+            rows.forEach(r=>globalRecipes.push(r));
+
+            // Build clickable entry
+            const div = document.createElement("div");
+            div.className = "file-entry";
+            div.innerHTML = file;
+            div.onclick = ()=> showCSVFile(file, rows);
+            sidebar.appendChild(div);
+        }
+
+        refreshApp();
+
+    } catch(e){
+        console.warn("External load failed:", e);
+        useDemoData();
+    }
+}
+
+/******************************************************************************
+  SIDE PANEL DISPLAY
+******************************************************************************/
+function showCSVFile(filename, rows){
+    const container = document.getElementById("csv-output");
+    container.innerHTML = "";
+    createTableSectionSingle(
+        container,
+        filename,
+        Object.keys(rows[0] || {}),
+        rows
+    );
+}
+
+/******************************************************************************
+  DEMO DATA FALLBACK
+******************************************************************************/
+function useDemoData(){
+    const demoData = [
+        {action:"STORE", to:"Iron Ore", cost:"5", currency:"Gold", from:"Blacksmith"},
+        {action:"STORE", to:"Oak Wood", cost:"2", currency:"Gold", from:"Lumberjack"},
+        {action:"STORE", to:"Crystal Shard", cost:"50", currency:"Gems", from:"Mystic"},
+        {action:"CRAFT", from:"Iron Ore", cin:"3", to:"Steel Bar", cout:"3", cost:"10"},
+        {action:"CRAFT", from:"Oak Wood", cin:"5", to:"Reinforced Hilt", cout:"1", cost:"15"},
+        {action:"CRAFT", from:"Steel Bar+Reinforced Hilt", cin:"2+1", to:"Blade of Eternity", cout:"1", cost:"500"},
+        {action:"CRAFT", from:"Blade of Eternity+Crystal Shard", cin:"1+2", to:"Godslayer", cout:"1", cost:"5000"}
+    ];
+
+    loadedFiles = ["Demo_Data.csv"];
+    globalRecipes = demoData;
+
+    showCSVFile("Demo_Data.csv", demoData);
+    refreshApp();
+}
+
+/******************************************************************************
+  APP REFRESH
+******************************************************************************/
+function refreshApp(){
+    updateCalcDropdown();
+    updateVizDropdown();
+    autoCalc();
+}
+
+/******************************************************************************
+  FILTER RECIPE FOR VISUALIZER
+******************************************************************************/
+function getRecipeTree(item){
+    let result = [];
+    function collect(it){
+        const r = globalRecipes.filter(x=>x.to === it);
+        if(r.length === 0) return;
+        result.push(r[0]);
+        if(r[0].action === "CRAFT"){
+            r[0].from.split("+").forEach(x=> collect(x.trim()));
+        }
+    }
+    collect(item);
+    return result;
+}
+
+/******************************************************************************
+  BUILD GRAPH ONLY FOR SELECTED RECIPE
+******************************************************************************/
+function buildGraphFor(item){
+    const recipes = getRecipeTree(item);
+    let nodes = [];
+    let nodeSet = new Set();
+    let links = [];
+
+    recipes.forEach(r=>{
+        if(!nodeSet.has(r.to)){
+            nodes.push({id:r.to, name:r.to, type:"item"});
+            nodeSet.add(r.to);
+        }
+        if(r.action === "STORE"){
+            const shopId = "SHOP_"+r.from.replace(/\s/g,"");
+            if(!nodeSet.has(shopId)){
+                nodes.push({id:shopId, name:r.from, type:"shop"});
+                nodeSet.add(shopId);
+            }
+            links.push({
+                source:shopId,
+                target:r.to,
+                label:`${r.cost} ${r.currency}`,
+                type:"buy"
+            });
+
+        } else {
+            const ing = r.from.split("+");
+            const qty = r.cin.split("+");
+            ing.forEach((ingredient, i)=>{
+                ingredient = ingredient.trim();
+                if(!nodeSet.has(ingredient)){
+                    nodes.push({id:ingredient, name:ingredient, type:"item"});
+                    nodeSet.add(ingredient);
+                }
+                links.push({
+                    source:ingredient,
+                    target:r.to,
+                    label:`${qty[i]}`,
+                    type:"craft"
+                });
+            });
+        }
+    });
+
+    drawGraph(nodes, links);
+}
+
+/******************************************************************************
+  VISUALIZER DROPDOWN
+******************************************************************************/
+function updateVizDropdown(){
+    const sel = document.getElementById("viz-select");
+    sel.innerHTML = "";
+    let craftables = globalRecipes.filter(r=>r.action==="CRAFT").map(r=>r.to);
+    [...new Set(craftables)].sort().forEach(x=>{
+        let o=document.createElement("option");
+        o.value=o.innerText=x;
+        sel.appendChild(o);
+    });
+    sel.onchange = ()=> buildGraphFor(sel.value);
+}
+
+/******************************************************************************
+  D3 VISUALIZER
+******************************************************************************/
+function drawGraph(nodes, links) {
+    document.getElementById("viz-container").innerHTML = "";
+    const width = document.getElementById("viz-wrapper").clientWidth;
+    const height = 500;
+
+    const svg = d3.select("#viz-container").append("svg")
+        .attr("width","100%").attr("height","100%");
+
+    const g = svg.append("g");
+
+    svg.call(d3.zoom().scaleExtent([0.1,4]).on("zoom",e=>g.attr("transform", e.transform)));
+
+    /* Mid-arrow marker */
+    const defs = svg.append("defs");
+    defs.append("marker")
+        .attr("id","arrow-mid")
+        .attr("viewBox","0 -5 10 10")
+        .attr("refX",5)
+        .attr("refY",0)
+        .attr("markerWidth",5)
+        .attr("markerHeight",5)
+        .attr("orient","auto")
+        .append("path")
+        .attr("d","M0,-5L10,0L0,5")
+        .attr("fill","#fff");
+
+    const simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d=>d.id).distance(130))
+        .force("charge", d3.forceManyBody().strength(-300))
+        .force("center", d3.forceCenter(width/2, height/2))
+        .force("collide", d3.forceCollide(55));
+
+    const link = g.append("g").selectAll("line").data(links).enter()
+        .append("line")
+        .attr("stroke", d=>d.type==="buy"?"#f1c40f":"#00c8ff")
+        .attr("stroke-width",2)
+        .attr("marker-mid","url(#arrow-mid)");
+
+    /* Edge labels */
+    const edgeText = g.append("g").selectAll("text").data(links).enter()
+        .append("text")
+        .attr("font-size","12px")
+        .attr("fill","white")
+        .attr("text-anchor","middle")
+        .text(d=>d.label);
+
+    const node = g.append("g").selectAll("foreignObject").data(nodes).enter()
+        .append("foreignObject")
+        .attr("width",110).attr("height",60)
+        .call(
+            d3.drag()
+            .on("start",(e,d)=>{if(!e.active)simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y;})
+            .on("drag",(e,d)=>{d.fx=e.x; d.fy=e.y;})
+            .on("end",(e,d)=>{if(!e.active)simulation.alphaTarget(0); d.fx=null; d.fy=null;})
+        );
+
+    node.append("xhtml:div").attr("class","node-container")
+        .style("background",d=> d.type==="shop"?"#333":"#1d2936")
+        .html(d=>`<strong>${d.name}</strong>`);
+
+    simulation.on("tick",()=>{
+        link
+            .attr("x1",d=>d.source.x)
+            .attr("y1",d=>d.source.y)
+            .attr("x2",d=>d.target.x)
+            .attr("y2",d=>d.target.y);
+
+        /* place text on midpoint */
+        edgeText
+            .attr("x", d => (d.source.x + d.target.x) / 2)
+            .attr("y", d => (d.source.y + d.target.y) / 2 - 5);
+
+        node.attr("x",d=>d.x-55).attr("y",d=>d.y-30);
+    });
+}
+
+/******************************************************************************
+  CALCULATOR (AUTO UPDATE)
+******************************************************************************/
+function updateCalcDropdown(){
+    const sel = document.getElementById("calc-item");
+    sel.innerHTML = "";
+
+    let items = globalRecipes.filter(r=>r.action==="CRAFT").map(r=>r.to);
+    [...new Set(items)].sort().forEach(x=>{
+        let o=document.createElement("option");
+        o.value=o.innerText=x;
+        sel.appendChild(o);
+    });
+
+    sel.onchange = autoCalc;
+    document.getElementById("calc-amount").oninput = autoCalc;
+}
+
+function resolve(item, amount){
+    let needs={};
+    let steps=[];
+    let recipes = globalRecipes.filter(r=>r.to===item);
+    if(recipes.length===0){
+        needs[item] = (needs[item]||0)+amount;
+        steps.push(`Get ${amount}x ${item}`);
+        return {needs,steps};
+    }
+    let r = recipes[0];
+
+    let out = parseFloat(r.cout)||1;
+    let batches = Math.ceil(amount/out);
+
+    if(r.action==="STORE"){
+        let cost = (parseFloat(r.cost)||0)*batches;
+        needs[r.currency] = (needs[r.currency]||0)+cost;
+        steps.push(`Buy ${amount}x ${item} (${cost} ${r.currency})`);
+        return {needs,steps};
+    }
+    steps.push(`Craft ${item} → ${amount}`);
+
+    let ing = r.from.split("+");
+    let qty = r.cin.split("+");
+
+    ing.forEach((ingName,i)=>{
+        let req = batches * (parseFloat(qty[i])||1);
+        let sub = resolve(ingName.trim(), req);
+        for(let k in sub.needs) needs[k]=(needs[k]||0)+sub.needs[k];
+        steps.push(...sub.steps.map(x=>"↳ "+x));
+    });
+
+    return {needs,steps};
+}
+
+function autoCalc(){
+    const item = document.getElementById("calc-item").value;
+    const amt = parseFloat(document.getElementById("calc-amount").value)||1;
+    const res = resolve(item, amt);
+    let html = `<h3>Shopping List</h3><ul>`;
+    for(let [k,v] of Object.entries(res.needs)) html += `<li>${k}: ${v}</li>`;
+    html += `</ul><h3>Steps</h3><div>${res.steps.join("<br>")}</div>`;
+    document.getElementById("calc-results").innerHTML = html;
+}
+
+/******************************************************************************
+  INIT
+******************************************************************************/
+loadAllCSVs();
+
+</script>
+</body>
+</html>
