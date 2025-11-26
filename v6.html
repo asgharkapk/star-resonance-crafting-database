@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Resonance: Dynamic DB</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+    /* Dark Theme Styles */
+    :root { --bg-dark: #0a0c16; --accent: #00c8ff; --text: #f0f3ff; --panel: rgba(255,255,255,0.05); }
+    body { background: radial-gradient(circle at top, #111428, #05060e); color: var(--text); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding-bottom: 50px; }
+    
+    /* Layout */
+    header, nav { background: rgba(0,0,0,0.5); padding: 10px; text-align: center; border-bottom: 1px solid #333; }
+    nav a { margin: 0 10px; color: #888; text-decoration: none; font-weight: bold; text-transform: uppercase; font-size: 0.9em; }
+    nav a:hover { color: var(--accent); }
+    main { max-width: 1200px; margin: 20px auto; padding: 0 10px; }
+    section { background: var(--panel); border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+    
+    /* D3 Graph */
+    #viz-wrapper { width: 100%; height: 600px; background: #050505; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #444; }
+    
+    .node-container { 
+        display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; 
+        width: 100%; height: 100%; color: white; border-radius: 8px; 
+        border: 2px solid #555; font-size: 11px; padding: 2px; box-sizing: border-box; 
+        cursor: pointer; transition: transform 0.1s; box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    }
+    .node-container:hover { transform: scale(1.05); border-color: white !important; z-index: 10; }
+
+    /* Graph Labels */
+    .edge-label {
+        font-family: sans-serif; font-size: 10px; fill: #ccc;
+        text-anchor: middle; pointer-events: none;
+        paint-order: stroke; stroke: #000; stroke-width: 3px; font-weight: bold;
+    }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+    th, td { padding: 8px; border-bottom: 1px solid #333; text-align: left; }
+    th { color: var(--accent); background: rgba(255,255,255,0.02); }
+    
+    /* Inputs */
+    input, select, button { background: #111; border: 1px solid #555; color: white; padding: 8px; border-radius: 4px; }
+    button { cursor: pointer; background: #222; font-weight: bold; transition: 0.2s; }
+    button:hover { background: var(--accent); color: black; }
+
+    /* Modal */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(2px); }
+    .modal.active { display: flex; }
+    .modal-content { background: #151725; padding: 25px; width: 90%; max-width: 500px; border: 1px solid var(--accent); border-radius: 12px; position: relative; box-shadow: 0 0 20px rgba(0, 200, 255, 0.2); }
+    .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #888; }
+    .close-btn:hover { color: white; }
+    
+    .recipe-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; }
+    .recipe-row:last-child { border-bottom: none; }
+    .tag { padding: 2px 6px; border-radius: 4px; font-size: 0.8em; background: #333; }
+</style>
+</head>
+<body>
+
+<header><h1>Star Resonance: Connected DB</h1></header>
+<nav>
+    <a href="#viz-section">Visualizer</a>
+    <a href="#calc-section">Calculator</a>
+    <a href="#data-section">Raw Data</a>
+</nav>
+
+<main>
+    <!-- 1. GRAPH SECTION -->
+    <section id="viz-section">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+            <h2>Economy Visualizer</h2>
+            <small style="color:#888">Click nodes to see details • Drag to rearrange • Scroll to Zoom</small>
+        </div>
+        <div id="viz-wrapper"><div id="viz-container" style="width:100%;height:100%"></div></div>
+    </section>
+
+    <!-- 2. CALCULATOR SECTION -->
+    <section id="calc-section">
+        <h2>Crafting Calculator</h2>
+        <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+            <select id="calc-item"><option>Loading...</option></select>
+            <input type="number" id="calc-amount" value="1" min="1" style="width:60px">
+            <button onclick="calculateAll()">Calculate Plan</button>
+        </div>
+        <div id="calc-results"></div>
+    </section>
+
+    <!-- 3. DATA SECTION -->
+    <section id="data-section">
+        <h2>Database Content</h2>
+        <div id="csv-output">Initializing...</div>
+    </section>
+</main>
+
+<!-- MODAL -->
+<div id="item-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="document.getElementById('item-modal').classList.remove('active')">&times;</span>
+        <h2 id="modal-title" style="margin-top:0; color:var(--accent)"></h2>
+        <div id="modal-details"></div>
+    </div>
+</div>
+
+<script>
+    // ===============================================
+    // 1. DATA LOGIC (Loading & Parsing)
+    // ===============================================
+    let globalRecipes = []; 
+
+    // Fake demo data generator if file fetch fails
+    function useDemoData(){
+        console.log("Using Demo Data");
+        globalRecipes = [
+            {action:"STORE", to:"Iron Ore", cost:"5", currency:"Gold", from:"Blacksmith"},
+            {action:"STORE", to:"Coal", cost:"3", currency:"Gold", from:"Miner"},
+            {action:"STORE", to:"Oak Wood", cost:"2", currency:"Gold", from:"Lumberjack"},
+            {action:"CRAFT", from:"Iron Ore+Coal", cin:"2+1", to:"Steel Ingot", cout:"1", cost:"10"},
+            {action:"CRAFT", from:"Oak Wood", cin:"3", to:"Hilt", cout:"1", cost:"5"},
+            {action:"CRAFT", from:"Steel Ingot+Hilt", cin:"2+1", to:"Basic Sword", cout:"1", cost:"50"},
+            {action:"CRAFT", from:"Basic Sword+Steel Ingot", cin:"1+5", to:"Knight's Blade", cout:"1", cost:"200"}
+        ];
+        refreshApp();
+    }
+
+    async function loadCSV(path){
+        const res = await fetch(path);
+        const text = await res.text();
+        const lines = text.trim().split("\n");
+        const headers = lines[0].split(",").map(h=>h.trim());
+        return lines.slice(1).map(line => {
+            const values = line.split(","); 
+            const row = {};
+            headers.forEach((h,i) => row[h] = values[i]?.trim() || "");
+            return row;
+        });
+    }
+
+    function createTableSection(filename, headers, rows){
+        const container = document.getElementById("csv-output");
+        const section = document.createElement("div");
+        section.innerHTML = `<h3>${filename}</h3><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${headers.map(h=>`<td>${r[h]}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+        container.appendChild(section);
+    }
+
+    async function loadAllCSVs(){
+        const DATA_DIR = "./data";
+        document.getElementById("csv-output").innerHTML = "";
+        
+        try {
+            const resp = await fetch(`${DATA_DIR}/index.json`);
+            if(!resp.ok) throw new Error("No index.json");
+            const {files} = await resp.json();
+            
+            for(const file of files){
+                const rows = await loadCSV(`${DATA_DIR}/${file}`);
+                createTableSection(file, Object.keys(rows[0]), rows);
+                rows.forEach(r => globalRecipes.push(r));
+            }
+            refreshApp(); 
+
+        } catch(e) {
+            document.getElementById("csv-output").innerHTML = `<p style="color:orange; border:1px solid orange; padding:10px;">⚠️ Could not load external data files. Loaded <strong>Demo Data</strong> instead.</p>`;
+            useDemoData();
+        }
+    }
+
+    // ===============================================
+    // 2. APP REFRESH & GRAPH PREP
+    // ===============================================
+    function refreshApp() {
+        processDataForGraph();
+        updateCalcDropdown();
+    }
+
+    // Assign rarity tiers based on dependency depth
+    function computeRarity(nodes, links) {
+        const incoming = {};  
+        const children = {};
+
+        nodes.forEach(n => {
+            incoming[n.id] = 0;
+            children[n.id] = [];
+            n.rarity = 0;
+        });
+
+        links.forEach(l => {
+            incoming[l.target]++;
+            children[l.source].push(l.target);
+        });
+
+        const queue = nodes.filter(n => incoming[n.id] === 0);
+        
+        while(queue.length > 0) {
+            const current = queue.shift();
+            const depth = current.rarity;
+            children[current.id].forEach(tgt => {
+                const nextNode = nodes.find(n => n.id === tgt);
+                if(nextNode) {
+                    if(depth + 1 > nextNode.rarity) {
+                        nextNode.rarity = depth + 1;
+                        queue.push(nextNode); // Re-process if depth increases
+                    }
+                }
+            });
+        }
+    }
+
+    function processDataForGraph() {
+        const nodes = [];
+        const links = [];
+        const nodeSet = new Set();
+
+        globalRecipes.forEach(r => {
+            // Ensure target exists
+            if(r.to && !nodeSet.has(r.to)) {
+                nodes.push({ id: r.to, name: r.to, type: "item" });
+                nodeSet.add(r.to);
+            }
+
+            if(r.action === 'STORE') {
+                let shopName = r.from || "Market";
+                let shopId = "SHOP_" + shopName.replace(/\s/g, '');
+                
+                if(!nodeSet.has(shopId)) {
+                    nodes.push({ id: shopId, name: shopName, type: "shop", currency: r.currency });
+                    nodeSet.add(shopId);
+                }
+                
+                links.push({ 
+                    source: shopId, 
+                    target: r.to, 
+                    label: `${r.cost} ${r.currency.substring(0,1)}`, // Short currency
+                    fullLabel: `${r.cost} ${r.currency}`,
+                    type: 'buy' 
+                });
+            
+            } else if(r.action === 'CRAFT' || r.category === 'Recipe') {
+                if(r.from) {
+                    const ingredients = r.from.split("+");
+                    const quantities = (r.cin || "").split("+");
+
+                    ingredients.forEach((ing, idx) => {
+                        ing = ing.trim();
+                        let qty = quantities[idx] || "";
+                        if(qty) qty = "x" + qty;
+
+                        if(!nodeSet.has(ing)) {
+                            nodes.push({ id: ing, name: ing, type: "item" });
+                            nodeSet.add(ing);
+                        }
+                        links.push({ 
+                            source: ing, 
+                            target: r.to, 
+                            label: qty, // e.g. "x5"
+                            fullLabel: `Requires ${qty} ${ing}`,
+                            type: 'craft' 
+                        });
+                    });
+                }
+            }
+        });
+
+        computeRarity(nodes, links);
+        drawGraph(nodes, links);
+    }
+
+    // ===============================================
+    // 3. D3 VISUALIZER (ENHANCED)
+    // ===============================================
+    let simulation; 
+
+    function drawGraph(nodes, links) {
+        const container = document.getElementById("viz-container");
+        container.innerHTML = "";
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        const svg = d3.select("#viz-container").append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%");
+        
+        // Define Arrow Markers
+        const defs = svg.append("defs");
+        
+        // Helper to create marker
+        function createMarker(id, color) {
+            defs.append("marker")
+                .attr("id", id)
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 54)  // <--- KEY FIX: 50 (half node width) + 4 (padding)
+                .attr("refY", 0)
+                .attr("markerWidth", 7)
+                .attr("markerHeight", 7)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", color);
+        }
+
+        createMarker("arrow-craft", "#00c8ff");
+        createMarker("arrow-buy", "#f1c40f");
+
+        // Group for zoom
+        const g = svg.append("g");
+        svg.call(d3.zoom().scaleExtent([0.1, 4]).on("zoom", (e) => g.attr("transform", e.transform)));
+
+        simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(150)) // Increased distance for labels
+            .force("charge", d3.forceManyBody().strength(-800))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collide", d3.forceCollide(70));
+
+        // 1. LINKS
+        const link = g.append("g").selectAll("path")
+            .data(links)
+            .join("path")
+            .attr("stroke", d => d.type === "buy" ? "#f1c40f" : "#00c8ff")
+            .attr("stroke-opacity", 0.8)
+            .attr("stroke-width", 2) // <--- KEY FIX: Thicker lines
+            .attr("fill", "none")
+            .attr("marker-end", d => d.type === "buy" ? "url(#arrow-buy)" : "url(#arrow-craft)");
+
+        // 2. EDGE LABELS (COSTS)
+        const edgeLabels = g.append("g").selectAll("text")
+            .data(links)
+            .join("text")
+            .attr("class", "edge-label")
+            .text(d => d.label);
+
+        // 3. NODES
+        const node = g.append("g").selectAll("foreignObject")
+            .data(nodes)
+            .join("foreignObject")
+            .attr("width", 100).attr("height", 60)
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        node.append("xhtml:div")
+            .attr("class", "node-container")
+            .style("background", d => {
+                if (d.type === 'shop') return "#222";
+                if (d.rarity >= 3) return "#4a235a"; 
+                if (d.rarity == 2) return "#7d3c98"; 
+                if (d.rarity == 1) return "#2471a3"; 
+                return "#17202a";
+            })
+            .style("border-color", d => {
+                if (d.type === 'shop') return "#f1c40f";
+                if (d.rarity >= 3) return "#e056fd";
+                if (d.rarity == 2) return "#af7ac5";
+                if (d.rarity == 1) return "#5dade2";
+                return "#555";
+            })
+            // CLICK EVENT HANDLER
+            .on("click", (e, d) => {
+                e.stopPropagation(); // Prevent drag interference sometimes
+                showNodeDetails(d, links);
+            })
+            .html(d => `<strong>${d.name}</strong><br><span style="font-size:9px; opacity:0.7">${d.type === 'shop' ? 'MERCHANT' : 'Tier '+d.rarity}</span>`);
+
+        simulation.on("tick", () => {
+            // Update link paths
+            link.attr("d", d => {
+                // Curving the line slightly makes it look nicer and helps with overlap, 
+                // but straight lines (M L) are faster. Using straight for performance.
+                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+            });
+
+            // Update Label Positions (Center of line)
+            edgeLabels
+                .attr("x", d => (d.source.x + d.target.x) / 2)
+                .attr("y", d => (d.source.y + d.target.y) / 2 - 5); // Shift up slightly
+
+            // Update Node Positions (Centered)
+            node.attr("x", d => d.x - 50).attr("y", d => d.y - 30);
+        });
+
+        // Drag functions
+        function dragstarted(e, d) {
+            if (!e.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x; d.fy = d.y;
+        }
+        function dragged(e, d) {
+            d.fx = e.x; d.fy = e.y;
+        }
+        function dragended(e, d) {
+            if (!e.active) simulation.alphaTarget(0);
+            d.fx = null; d.fy = null;
+        }
+    }
+
+    // ===============================================
+    // 4. INTERACTIVITY (Modal & Selection)
+    // ===============================================
+    function showNodeDetails(node, links) {
+        const modal = document.getElementById("item-modal");
+        const title = document.getElementById("modal-title");
+        const content = document.getElementById("modal-details");
+        
+        title.innerText = node.name;
+        
+        // 1. Find Inputs (Recipe)
+        // Note: In D3 force layout, link.target is now an OBJECT ref, not a string ID
+        const inputs = links.filter(l => l.target.id === node.id);
+        
+        // 2. Find Outputs (Usage)
+        const outputs = links.filter(l => l.source.id === node.id);
+
+        let html = "";
+
+        if(node.type === "shop") {
+            html += `<h3>Sells:</h3>`;
+            if(outputs.length === 0) html += `<p>Nothing defined.</p>`;
+            else outputs.forEach(l => {
+                html += `<div class="recipe-row">
+                            <span>Selling <strong>${l.target.id}</strong></span>
+                            <span class="tag" style="color:#f1c40f">${l.label}</span>
+                         </div>`;
+            });
+        } else {
+            // It's an Item
+            html += `<h3>Recipe (Inputs):</h3>`;
+            if(inputs.length === 0) {
+                html += `<p style="color:#777"><i>Base Material (Found or Gathered)</i></p>`;
+            } else {
+                inputs.forEach(l => {
+                    const isBuy = l.type === 'buy';
+                    html += `<div class="recipe-row">
+                                <span>${isBuy ? 'Buy from' : 'Craft with'} <strong>${l.source.id}</strong></span>
+                                <span class="tag">${l.label}</span>
+                             </div>`;
+                });
+            }
+
+            html += `<h3>Used In (Outputs):</h3>`;
+            if(outputs.length === 0) {
+                html += `<p style="color:#777"><i>Final Product</i></p>`;
+            } else {
+                outputs.forEach(l => {
+                    html += `<div class="recipe-row">
+                                <span>Crafts <strong>${l.target.id}</strong></span>
+                             </div>`;
+                });
+            }
+        }
+
+        content.innerHTML = html;
+        modal.classList.add("active");
+    }
+
+
+    // ===============================================
+    // 5. CALCULATOR LOGIC
+    // ===============================================
+    function updateCalcDropdown() {
+        const sel = document.getElementById("calc-item");
+        sel.innerHTML = "";
+        const items = new Set();
+        globalRecipes.forEach(r => { if(r.to) items.add(r.to); });
+        [...items].sort().forEach(i => {
+            const opt = document.createElement("option");
+            opt.innerText = i;
+            sel.appendChild(opt);
+        });
+    }
+
+    function resolve(item, amount) {
+        let needs = {};
+        let steps = [];
+        
+        let recipes = globalRecipes.filter(r => r.to === item);
+        if(recipes.length === 0) {
+            needs[item] = amount;
+            return {needs, steps: [`Obtain ${amount}x ${item} (No recipe)`]};
+        }
+
+        let r = recipes[0];
+        let outQty = parseFloat(r.cout) || 1;
+        let batches = Math.ceil(amount / outQty);
+        let actualAmount = batches * outQty;
+
+        if(r.action === 'STORE') {
+            let cost = (parseFloat(r.cost) || 0) * batches;
+            needs[`${r.currency}`] = (needs[`${r.currency}`]||0) + cost;
+            steps.push(`Buy ${actualAmount}x ${item} from ${r.from || 'Market'} (${cost} ${r.currency})`);
+        } else {
+            let ingNames = r.from.split("+");
+            let ingQtys = (r.cin || "").split("+");
+            
+            steps.push(`Craft ${actualAmount}x ${item} (requires ${batches} crafts)`);
+            
+            ingNames.forEach((ingName, idx) => {
+                let perBatch = parseFloat(ingQtys[idx]) || 1;
+                let totalReq = perBatch * batches;
+                let sub = resolve(ingName.trim(), totalReq);
+                for(let k in sub.needs) needs[k] = (needs[k]||0) + sub.needs[k];
+                sub.steps.forEach(s => steps.push(`-- ${s}`));
+            });
+        }
+        return {needs, steps};
+    }
+
+    function calculateAll() {
+        const item = document.getElementById("calc-item").value;
+        const amt = document.getElementById("calc-amount").value;
+        if(!item || item === "Loading...") return;
+
+        const res = resolve(item, amt);
+        
+        let html = `<h3>Shopping List</h3><ul>`;
+        for(let [k,v] of Object.entries(res.needs)) html += `<li><span style="color:var(--accent)">${v}</span> ${k}</li>`;
+        html += `</ul><h3>Steps</h3><div style="font-size:0.9em; opacity:0.8; max-height:200px; overflow-y:auto">` + res.steps.map(s=>`<div style="padding:2px; border-bottom:1px solid #222">${s}</div>`).join("") + "</div>";
+        
+        document.getElementById("calc-results").innerHTML = html;
+    }
+
+    // Initialize
+    loadAllCSVs();
+
+</script>
+</body>
+</html>
