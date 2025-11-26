@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Resonance: Dynamic DB</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+    /* Dark Theme Styles */
+    :root { --bg-dark: #0a0c16; --accent: #00c8ff; --text: #f0f3ff; --panel: rgba(255,255,255,0.05); }
+    body { background: radial-gradient(circle at top, #111428, #05060e); color: var(--text); font-family: sans-serif; margin: 0; padding-bottom: 50px; }
+    
+    /* Layout */
+    header, nav { background: rgba(0,0,0,0.5); padding: 10px; text-align: center; border-bottom: 1px solid #333; }
+    nav a { margin: 0 10px; color: #888; text-decoration: none; font-weight: bold; }
+    nav a:hover { color: var(--accent); }
+    main { max-width: 1200px; margin: 20px auto; padding: 0 10px; }
+    section { background: var(--panel); border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #333; }
+    
+    /* D3 Graph */
+    #viz-wrapper { width: 100%; height: 500px; background: #000; border-radius: 8px; overflow: hidden; position: relative; }
+    .node-container { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; width: 100%; height: 100%; color: white; border-radius: 6px; border: 1px solid #555; font-size: 11px; padding: 2px; box-sizing: border-box;}
+    
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+    th, td { padding: 8px; border-bottom: 1px solid #333; text-align: left; }
+    th { color: var(--accent); background: rgba(255,255,255,0.05); }
+    tr:hover { background: rgba(255,255,255,0.02); }
+    
+    /* Inputs */
+    input, select, button { background: #111; border: 1px solid #555; color: white; padding: 5px; border-radius: 4px; }
+    button { cursor: pointer; background: #222; }
+    button:hover { background: var(--accent); color: black; }
+
+    /* Status Msg */
+    .status-warn { color: #f1c40f; margin-bottom: 10px; padding: 10px; border: 1px solid #f1c40f; border-radius: 4px; background: rgba(241, 196, 15, 0.1); }
+</style>
+</head>
+<body>
+
+<header><h1>Star Resonance: Connected DB</h1></header>
+<nav>
+    <a href="#viz-section">Visualizer</a>
+    <a href="#calc-section">Calculator</a>
+    <a href="#data-section">Raw Data</a>
+</nav>
+
+<main>
+    <!-- 1. GRAPH SECTION -->
+    <section id="viz-section">
+        <h2>Economy Visualizer</h2>
+        <div id="viz-wrapper"><div id="viz-container" style="width:100%;height:100%"></div></div>
+    </section>
+
+    <!-- 2. CALCULATOR SECTION -->
+    <section id="calc-section">
+        <h2>Crafting Calculator</h2>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <select id="calc-item"><option>Loading...</option></select>
+            <input type="number" id="calc-amount" value="1" style="width:60px">
+            <button onclick="calculateAll()">Calculate</button>
+        </div>
+        <div id="calc-results"></div>
+    </section>
+
+    <!-- 3. DATA SECTION -->
+    <section id="data-section">
+        <h2>Database Content</h2>
+        <div id="status-msg"></div>
+        <div id="csv-output">Initializing...</div>
+    </section>
+</main>
+
+<script>
+    // ===============================================
+    // 1. DATA FETCHING & PARSING
+    // ===============================================
+    let globalRecipes = []; 
+
+    async function loadCSV(path){
+        const res = await fetch(path);
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const lines = text.trim().split("\n");
+        const headers = lines[0].split(",").map(h=>h.trim());
+        return lines.slice(1).map(line => {
+            // Basic CSV Split (Does not handle commas inside quotes)
+            const values = line.split(","); 
+            const row = {};
+            headers.forEach((h,i) => row[h] = values[i]?.trim() || "");
+            return row;
+        });
+    }
+
+    function createTableSection(filename, headers, rows){
+        const container = document.getElementById("csv-output");
+        const section = document.createElement("div");
+        section.innerHTML = `
+            <h3 style="color:#888; border-bottom:1px solid #444; margin-top:20px;">${filename}</h3>
+            <div style="overflow-x:auto;">
+            <table>
+                <thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
+                <tbody>${rows.map(r=>`<tr>${headers.map(h=>`<td>${r[h] || ''}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table>
+            </div>`;
+        container.appendChild(section);
+    }
+
+    async function loadAllCSVs(){
+        const DATA_DIR = "./data";
+        document.getElementById("csv-output").innerHTML = "";
+        
+        try {
+            // Attempt to fetch index.json
+            const resp = await fetch(`${DATA_DIR}/index.json`);
+            if(!resp.ok) throw new Error("Could not find data/index.json");
+            
+            const {files} = await resp.json();
+            
+            for(const file of files){
+                const rows = await loadCSV(`${DATA_DIR}/${file}`);
+                createTableSection(file, Object.keys(rows[0]), rows);
+                rows.forEach(r => globalRecipes.push(r));
+            }
+            console.log("Data loaded from External CSVs");
+            refreshApp(); 
+
+        } catch(e) {
+            console.warn("External data load failed. Logic:", e);
+            
+            // UI Feedback
+            const msgDiv = document.getElementById("status-msg");
+            msgDiv.innerHTML = `<div class="status-warn">
+                <strong>⚠️ External Data Not Loaded</strong><br>
+                Reason: ${e.message === "Failed to fetch" ? "Browser blocked local file access (CORS). Use a local server (VS Code Live Server)." : e.message}<br>
+                <em>Switching to Demo Data mode.</em>
+            </div>`;
+            
+            useDemoData();
+        }
+    }
+
+    function useDemoData(){
+        const demoData = [
+            {action:"STORE", to:"Iron Ore", cost:"5", currency:"Gold", from:"Blacksmith"},
+            {action:"STORE", to:"Oak Wood", cost:"2", currency:"Gold", from:"Lumberjack"},
+            {action:"STORE", to:"Crystal Shard", cost:"50", currency:"Gems", from:"Mystic"},
+            {action:"CRAFT", from:"Iron Ore", cin:"3", to:"Steel Bar", cout:"3", cost:"10"},
+            {action:"CRAFT", from:"Oak Wood", cin:"5", to:"Reinforced Hilt", cout:"1", cost:"15"},
+            {action:"CRAFT", from:"Steel Bar+Reinforced Hilt", cin:"2+1", to:"Blade of Eternity", cout:"1", cost:"500"},
+            {action:"CRAFT", from:"Blade of Eternity+Crystal Shard", cin:"1+2", to:"Godslayer", cout:"1", cost:"5000"}
+        ];
+
+        // FIXED: Now we manually visualize the Demo Data in the table
+        createTableSection("Demo_Data.csv (Fallback)", ["action", "from", "to", "cost", "currency"], demoData);
+
+        globalRecipes = demoData;
+        refreshApp();
+    }
+
+    // ===============================================
+    // 2. DATA PROCESSING
+    // ===============================================
+    function refreshApp() {
+        processDataForGraph();
+        updateCalcDropdown();
+        calculateAll();
+    }
+
+    function computeRarity(nodes, links) {
+        // Reset
+        nodes.forEach(n => n.rarity = 0);
+
+        const incoming = {};  
+        const children = {};
+
+        nodes.forEach(n => { incoming[n.id] = 0; children[n.id] = []; });
+        links.forEach(l => { 
+            // Handle if target/source are objects (D3 converts them after simulation starts)
+            const sId = l.source.id || l.source;
+            const tId = l.target.id || l.target;
+            incoming[tId] = (incoming[tId] || 0) + 1;
+            children[sId] = children[sId] || [];
+            children[sId].push(tId);
+        });
+
+        const queue = nodes.filter(n => incoming[n.id] === 0);
+        
+        while(queue.length > 0) {
+            const current = queue.shift();
+            const depth = current.rarity;
+            
+            if(children[current.id]) {
+                children[current.id].forEach(tgt => {
+                    const nextNode = nodes.find(n => n.id === tgt);
+                    if(nextNode) {
+                        if(depth + 1 > nextNode.rarity) {
+                            nextNode.rarity = depth + 1;
+                            queue.push(nextNode); // Re-process if depth increases
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    function processDataForGraph() {
+        const nodes = [];
+        const links = [];
+        const nodeSet = new Set();
+
+        globalRecipes.forEach(r => {
+            // Ensure Item Node Exists
+            if(r.to && !nodeSet.has(r.to)) {
+                nodes.push({ id: r.to, name: r.to, type: "item" });
+                nodeSet.add(r.to);
+            }
+
+            if(r.action === 'STORE') {
+                let shopName = r.from || "Market";
+                let shopId = "SHOP_" + shopName.replace(/\s/g, '');
+                if(!nodeSet.has(shopId)) {
+                    nodes.push({ id: shopId, name: shopName, type: "shop", currency: r.currency });
+                    nodeSet.add(shopId);
+                }
+                links.push({ source: shopId, target: r.to, label: `${r.cost} ${r.currency}`, type: 'buy' });
+            
+            } else if(r.action === 'CRAFT' || r.category === 'Recipe') {
+                if(r.from) {
+                    r.from.split("+").forEach(ing => {
+                        ing = ing.trim();
+                        if(!nodeSet.has(ing)) {
+                            nodes.push({ id: ing, name: ing, type: "item" });
+                            nodeSet.add(ing);
+                        }
+                        links.push({ source: ing, target: r.to, label: "Craft", type: 'craft' });
+                    });
+                }
+            }
+        });
+
+        computeRarity(nodes, links);
+        drawGraph(nodes, links);
+    }
+
+    // ===============================================
+    // 3. D3 VISUALIZER
+    // ===============================================
+    function drawGraph(nodes, links) {
+        document.getElementById("viz-container").innerHTML = "";
+        const width = document.getElementById("viz-wrapper").clientWidth || 800;
+        const height = 500;
+
+        // 1. Create SVG
+        const svg = d3.select("#viz-container").append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%");
+        
+        const g = svg.append("g");
+
+        // 2. Zoom capability
+        svg.call(d3.zoom().scaleExtent([0.1, 4]).on("zoom", (e) => g.attr("transform", e.transform)));
+        
+        // 3. Define Markers (Arrows)
+        const defs = svg.append("defs");
+        
+        // Craft Arrow (Blue)
+        defs.append("marker").attr("id", "arrow-craft")
+            .attr("viewBox", "0 -5 10 10").attr("refX", 55).attr("refY", 0)
+            .attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+            .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#00c8ff");
+        
+        // Buy Arrow (Yellow)
+        defs.append("marker").attr("id", "arrow-buy")
+            .attr("viewBox", "0 -5 10 10").attr("refX", 55).attr("refY", 0)
+            .attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+            .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#f1c40f");
+
+        // 4. Force Simulation
+        const simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+            .force("charge", d3.forceManyBody().strength(-400))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collide", d3.forceCollide(60));
+
+        // 5. Draw Links
+        const link = g.append("g").selectAll("path").data(links).join("path")
+            .attr("stroke", d => d.type === "buy" ? "#f1c40f" : "#00c8ff")
+            .attr("stroke-opacity", 0.6)
+            .attr("stroke-width", 1.5)
+            .attr("fill", "none")
+            .attr("marker-end", d => d.type === "buy" ? "url(#arrow-buy)" : "url(#arrow-craft)");
+
+        // 6. Draw Nodes
+        const node = g.append("g").selectAll("foreignObject").data(nodes).join("foreignObject")
+            .attr("width", 100).attr("height", 60)
+            .call(d3.drag()
+                .on("start", (e,d)=>{ if(!e.active)simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+                .on("drag", (e,d)=>{ d.fx=e.x; d.fy=e.y; })
+                .on("end", (e,d)=>{ if(!e.active)simulation.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+        node.append("xhtml:div")
+            .attr("class", d => `node-container`)
+            .style("background", d => {
+                if (d.type === 'shop') return "#222";
+                if (d.rarity >= 3) return "#5b2c6f";   // purple
+                if (d.rarity == 2) return "#8e44ad";   // violet
+                if (d.rarity == 1) return "#2980b9";   // blue
+                return "#2c3e50";                      // grey
+            })
+            .style("border-color", d => {
+                if (d.type === 'shop') return "#f1c40f";
+                if (d.rarity >= 3) return "#e056fd";
+                if (d.rarity == 2) return "#9b59b6";
+                if (d.rarity == 1) return "#3498db";
+                return "#555";
+            })
+            .html(d => `<strong>${d.name}</strong><br><span style="font-size:9px; opacity:0.7">${d.type === 'shop' ? 'MERCHANT' : 'Tier '+d.rarity}</span>`);
+
+        simulation.on("tick", () => {
+            link.attr("d", d => {
+                // Curved lines for better visibility
+                // return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`; // Straight
+                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+            });
+            node.attr("x", d => d.x - 50).attr("y", d => d.y - 30);
+        });
+    }
+
+    // ===============================================
+    // 4. CALCULATOR LOGIC
+    // ===============================================
+    function updateCalcDropdown() {
+        const sel = document.getElementById("calc-item");
+        sel.innerHTML = "";
+        const items = new Set();
+        globalRecipes.forEach(r => { if(r.to && r.action !== 'STORE') items.add(r.to); });
+        
+        if(items.size === 0) {
+            let opt = document.createElement("option");
+            opt.innerText = "No Craftables";
+            sel.appendChild(opt);
+            return;
+        }
+
+        [...items].sort().forEach(i => {
+            const opt = document.createElement("option");
+            opt.innerText = i;
+            sel.appendChild(opt);
+        });
+    }
+
+    function resolve(item, amount) {
+        let needs = {};
+        let steps = [];
+        
+        let recipes = globalRecipes.filter(r => r.to === item);
+        if(recipes.length === 0) {
+            // Check if it's a basic item (buyable) even if action isn't STORE?
+            // Assuming if no recipe, we just need the item itself.
+            needs[item] = (needs[item] || 0) + amount;
+            steps.push(`Find/Buy ${amount}x ${item} (Raw Material)`);
+            return {needs, steps};
+        }
+
+        let r = recipes[0]; // Pick first recipe found
+        let outQty = parseFloat(r.cout) || 1;
+        let batches = Math.ceil(amount / outQty);
+        let actualYield = batches * outQty;
+
+        if(r.action === 'STORE') {
+            let cost = (parseFloat(r.cost) || 0) * batches;
+            needs[`${r.currency}`] = (needs[`${r.currency}`]||0) + cost;
+            steps.push(`Buy ${amount}x ${item} from ${r.from||'Shop'} (${cost} ${r.currency})`);
+        } else {
+            let ingNames = r.from.split("+");
+            let ingQtys = (r.cin || "").split("+");
+            
+            steps.push(`Craft ${batches} batches of ${item} (Yields ${actualYield})`);
+            
+            ingNames.forEach((ingName, idx) => {
+                let perBatch = parseFloat(ingQtys[idx]) || 1;
+                let totalReq = perBatch * batches;
+                
+                let sub = resolve(ingName.trim(), totalReq);
+                
+                for(let k in sub.needs) needs[k] = (needs[k]||0) + sub.needs[k];
+                sub.steps.forEach(s => steps.push(`<span style="color:#888; margin-left:10px;">↳</span> ${s}`));
+            });
+        }
+        return {needs, steps};
+    }
+
+    function calculateAll() {
+        const item = document.getElementById("calc-item").value;
+        const amt = parseFloat(document.getElementById("calc-amount").value) || 1;
+        if(!item || item === "Loading..." || item === "No Craftables") return;
+
+        const res = resolve(item, amt);
+        
+        let html = `<h3>Shopping List</h3><ul style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">`;
+        for(let [k,v] of Object.entries(res.needs)) {
+            if(k.includes("Gold") || k.includes("Gems")) {
+                 html += `<li style="color:var(--accent)">${k}: ${v}</li>`;
+            } else {
+                 html += `<li>${k}: ${v}</li>`;
+            }
+        }
+        html += `</ul><h3 style="margin-top:20px;">Step-by-Step</h3><div style="font-size:0.9em; opacity:0.9; line-height:1.6;">` 
+             + res.steps.map(s=>`<div>${s}</div>`).join("") + "</div>";
+        
+        document.getElementById("calc-results").innerHTML = html;
+    }
+
+    // Initialize
+    loadAllCSVs();
+
+</script>
+</body>
+</html>
