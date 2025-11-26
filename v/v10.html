@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Resonance: Connected DB</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<style>
+/* ======== Global Layout ======== */
+:root {
+  --bg-dark: #0a0c16;
+  --bg-panel: rgba(255, 255, 255, 0.06);
+  --accent: #00c8ff;
+  --accent-glow: 0 0 12px rgba(0,200,255,0.6);
+  --text-light: #f0f3ff;
+  --text-dim: #8ba0b5;
+  --radius: 14px;
+  --transition: 0.3s ease;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at top, #111428, #05060e);
+  color: var(--text-light);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ======== Header & Nav ======== */
+header {
+  background: rgba(10,14,30,0.6);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-align: center;
+  padding: 1.5rem 1rem;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+}
+header h1 { margin: 0; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; text-shadow: var(--accent-glow); }
+
+nav {
+  display: flex; justify-content: center; gap: 1.5rem; padding: 1rem;
+  background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+nav a { color: var(--text-dim); text-decoration: none; font-weight: bold; transition: var(--transition); }
+nav a:hover { color: var(--accent); text-shadow: var(--accent-glow); }
+
+/* ======== Main Layout ======== */
+main { max-width: 1200px; margin: 2rem auto; padding: 0 1rem 4rem; width: 100%; box-sizing: border-box; }
+section {
+  background: var(--bg-panel); border-radius: var(--radius); margin-bottom: 2rem; padding: 1.5rem;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);
+}
+h2 { border-left: 4px solid var(--accent); padding-left: 10px; color: var(--accent); margin-top: 0; }
+
+/* ======== D3 Graph ======== */
+#viz-wrapper { width: 100%; height: 600px; background: #05060e; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #333; }
+.node-container { 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    text-align: center; width: 100%; height: 100%; color: white; border-radius: 6px; 
+    border: 1px solid #555; font-size: 11px; padding: 2px; box-sizing: border-box; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    cursor: pointer;
+}
+.node-container:hover { transform: scale(1.05); z-index: 10; border-color: white; }
+
+/* ======== Tables ======== */
+table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+th, td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left; }
+th { color: var(--accent); background: rgba(255,255,255,0.05); }
+.item-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+.item-link:hover { color: white; text-shadow: var(--accent-glow); }
+
+/* ======== Calculator Styles ======== */
+#calculator { background: #151725; padding: 20px; border-radius: 12px; border: 1px solid #333; }
+input, select, button { background: #0a0c16; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; }
+button { cursor: pointer; background: #222; transition: 0.2s; }
+button:hover { background: var(--accent); color: black; }
+.calc-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px; }
+
+/* ======== Modal ======== */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 999; opacity: 0; pointer-events: none; transition: 0.3s; backdrop-filter: blur(5px); }
+.modal.active { opacity: 1; pointer-events: all; }
+.modal-content { background: #1a1d2e; padding: 30px; max-width: 600px; width: 90%; border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 0 30px rgba(0,200,255,0.2); transform: scale(0.9); transition: 0.3s; }
+.modal.active .modal-content { transform: scale(1); }
+.close-modal { float: right; font-size: 1.5rem; cursor: pointer; color: var(--accent); }
+
+/* Status */
+.status-warn { color: #f1c40f; background: rgba(241, 196, 15, 0.1); padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid rgba(241,196,15,0.3); }
+</style>
+</head>
+<body>
+
+<header><h1>Star Resonance: Connected DB</h1></header>
+
+<nav>
+    <a href="#viz-section">Visualizer</a>
+    <a href="#calc-section">Calculator</a>
+    <a href="#data-section">Raw Data</a>
+</nav>
+
+<main>
+    <!-- 1. GRAPH SECTION -->
+    <section id="viz-section">
+        <h2>Economy Visualizer</h2>
+        <p style="font-size:0.9em; opacity:0.7">Drag nodes to rearrange. Zoom/Pan supported.</p>
+        <div id="viz-wrapper"><div id="viz-container" style="width:100%;height:100%"></div></div>
+    </section>
+
+    <!-- 2. CALCULATOR SECTION -->
+    <section id="calc-section">
+        <div id="calculator">
+            <h2>Crafting Calculator</h2>
+            <div class="calc-row">
+                <div>
+                    <label>Target Item</label><br>
+                    <select id="calc-item" style="width:100%"><option>Loading...</option></select>
+                </div>
+                <div>
+                    <label>Amount</label><br>
+                    <input type="number" id="calc-amount" value="1" style="width:100%">
+                </div>
+                <div style="display:flex; align-items:flex-end">
+                    <button onclick="calculateAll()" style="width:100%">Calculate</button>
+                </div>
+            </div>
+            <div id="calc-results"></div>
+        </div>
+    </section>
+
+    <!-- 3. DATA SECTION -->
+    <section id="data-section">
+        <h2>Database Content</h2>
+        <div id="status-msg"></div>
+        <div id="csv-output">Initializing...</div>
+    </section>
+</main>
+
+<!-- MODAL -->
+<div id="item-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h2 id="modal-title" style="margin-top:0"></h2>
+        <div id="modal-details"></div>
+    </div>
+</div>
+
+<script>
+    // ===============================================
+    // 1. DATA CORE
+    // ===============================================
+    let globalRecipes = []; 
+    let allData = {}; // For table categorization
+
+    function makeClickableCell(text){
+        if(!text) return "";
+        return `<span class="item-link" onclick="openModal('${text}')">${text}</span>`;
+    }
+
+    // CSV Parser
+    async function loadCSV(path){
+        const res = await fetch(path);
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const lines = text.trim().split("\n");
+        const headers = lines[0].split(",").map(h=>h.trim());
+        return lines.slice(1).map(line => {
+            const values = line.split(","); // Simple split
+            const row = {};
+            headers.forEach((h,i) => row[h] = values[i]?.trim() || "");
+            return row;
+        });
+    }
+
+    // Table Generator
+    function createTableSection(filename, headers, rows){
+        const container = document.getElementById("csv-output");
+        const section = document.createElement("div");
+        const title = filename.replace(".csv","").replace(/_/g," ");
+        
+        section.innerHTML = `
+            <h3 style="color:#888; border-bottom:1px solid #444; margin-top:20px;">${title}</h3>
+            <div style="overflow-x:auto;">
+            <table>
+                <thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
+                <tbody>${rows.map(r=>`<tr>${headers.map(h => {
+                    // Check if column is relevant for clicking
+                    const val = r[h] || "";
+                    if((h.includes("item") || h.includes("to") || h.includes("from")) && val.length > 1 && !val.includes("+")) {
+                        return `<td>${makeClickableCell(val)}</td>`;
+                    }
+                    return `<td>${val}</td>`;
+                }).join("")}</tr>`).join("")}</tbody>
+            </table>
+            </div>`;
+        container.appendChild(section);
+    }
+
+    // Master Load Function
+    async function loadAllCSVs(){
+        const DATA_DIR = "./data";
+        document.getElementById("csv-output").innerHTML = "";
+        
+        try {
+            const resp = await fetch(`${DATA_DIR}/index.json`);
+            if(!resp.ok) throw new Error("index.json not found");
+            const {files} = await resp.json();
+            
+            for(const file of files){
+                const rows = await loadCSV(`${DATA_DIR}/${file}`);
+                createTableSection(file, Object.keys(rows[0]), rows);
+                
+                // Populate global data
+                rows.forEach(r => globalRecipes.push(r));
+                allData[file] = rows;
+            }
+            refreshApp(); 
+
+        } catch(e) {
+            console.warn("External data load failed:", e);
+            document.getElementById("status-msg").innerHTML = `
+                <div class="status-warn">
+                    <strong>⚠️ Local Mode Active</strong><br>
+                    Data could not be loaded (likely CORS policy). Using Demo Data.
+                </div>`;
+            useDemoData();
+        }
+    }
+
+    function useDemoData(){
+        const demoData = [
+            {action:"STORE", to:"Iron Ore", cost:"5", currency:"Gold", from:"Blacksmith"},
+            {action:"STORE", to:"Oak Wood", cost:"2", currency:"Gold", from:"Lumberjack"},
+            {action:"STORE", to:"Crystal Shard", cost:"50", currency:"Gems", from:"Mystic"},
+            {action:"CRAFT", from:"Iron Ore", cin:"3", to:"Steel Bar", cout:"3", cost:"10"},
+            {action:"CRAFT", from:"Oak Wood", cin:"5", to:"Reinforced Hilt", cout:"1", cost:"15"},
+            {action:"CRAFT", from:"Steel Bar+Reinforced Hilt", cin:"2+1", to:"Blade of Eternity", cout:"1", cost:"500"},
+            {action:"CRAFT", from:"Blade of Eternity+Crystal Shard", cin:"1+2", to:"Godslayer", cout:"1", cost:"5000"}
+        ];
+
+        createTableSection("Demo_Data.csv", ["action", "from", "to", "cost", "currency"], demoData);
+        globalRecipes = demoData;
+        refreshApp();
+    }
+
+    function refreshApp() {
+        processDataForGraph();
+        updateCalcDropdown();
+        calculateAll();
+    }
+
+    // ===============================================
+    // 2. MODAL LOGIC (The "Clickable" Feature)
+    // ===============================================
+    function openModal(item){
+        const modal = document.getElementById("item-modal");
+        const title = document.getElementById("modal-title");
+        const details = document.getElementById("modal-details");
+        
+        title.innerText = item;
+        modal.classList.add("active");
+        
+        // Find Info
+        let sources = globalRecipes.filter(r => r.to === item);
+        let uses = globalRecipes.filter(r => r.from && r.from.includes(item));
+        
+        let html = "";
+        
+        // Sources
+        if(sources.length) {
+            html += `<h3>Sources</h3><ul>`;
+            sources.forEach(s => {
+                if(s.action === "STORE") html += `<li>Buy from <strong>${s.from}</strong>: ${s.cost} ${s.currency}</li>`;
+                else html += `<li>Craft: ${s.from} (${s.cost || 0} cost)</li>`;
+            });
+            html += `</ul>`;
+        } else {
+            html += `<p>No known recipe or shop for this item.</p>`;
+        }
+
+        // Uses
+        if(uses.length) {
+            html += `<h3>Used In</h3><ul>`;
+            uses.forEach(u => {
+                html += `<li>${u.to} (requires ${u.cin})</li>`;
+            });
+            html += `</ul>`;
+        }
+
+        details.innerHTML = html;
+    }
+
+    function closeModal(){
+        document.getElementById("item-modal").classList.remove("active");
+    }
+
+    // ===============================================
+    // 3. D3 VISUALIZER
+    // ===============================================
+    function processDataForGraph() {
+        const nodes = [];
+        const links = [];
+        const nodeSet = new Set();
+
+        // Calculate rarity/tier first
+        // (Simplified tier logic for demo)
+        
+        globalRecipes.forEach(r => {
+            if(r.to && !nodeSet.has(r.to)) {
+                nodes.push({ id: r.to, name: r.to, type: "item", tier: 1 });
+                nodeSet.add(r.to);
+            }
+            if(r.action === 'STORE') {
+                let shopId = "SHOP_" + (r.from || "Market").replace(/\s/g,'');
+                if(!nodeSet.has(shopId)) {
+                    nodes.push({ id: shopId, name: r.from||"Market", type: "shop", tier: 0 });
+                    nodeSet.add(shopId);
+                }
+                links.push({ source: shopId, target: r.to, type: 'buy', label: r.cost });
+            } else if (r.from) {
+                r.from.split("+").forEach(ing => {
+                    ing = ing.trim();
+                    if(!nodeSet.has(ing)) {
+                        nodes.push({ id: ing, name: ing, type: "item", tier: 0 });
+                        nodeSet.add(ing);
+                    }
+                    links.push({ source: ing, target: r.to, type: 'craft' });
+                });
+            }
+        });
+
+        drawGraph(nodes, links);
+    }
+
+    function drawGraph(nodes, links) {
+        const container = document.getElementById("viz-container");
+        container.innerHTML = "";
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        const svg = d3.select("#viz-container").append("svg")
+            .attr("width", "100%").attr("height", "100%")
+            .call(d3.zoom().scaleExtent([0.1, 4]).on("zoom", (e) => g.attr("transform", e.transform)));
+        
+        const g = svg.append("g");
+
+        // Markers
+        const defs = svg.append("defs");
+        const mk = (id, color) => {
+            defs.append("marker").attr("id", id).attr("viewBox", "0 -5 10 10").attr("refX", 55).attr("refY", 0)
+                .attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+                .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", color);
+        };
+        mk("arrow-craft", "#00c8ff");
+        mk("arrow-buy", "#f1c40f");
+
+        const simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width/2, height/2))
+            .force("collide", d3.forceCollide(60));
+
+        const link = g.append("g").selectAll("path").data(links).join("path")
+            .attr("stroke", d => d.type === "buy" ? "#f1c40f" : "#00c8ff")
+            .attr("stroke-width", 1.5).attr("fill", "none")
+            .attr("marker-end", d => d.type === "buy" ? "url(#arrow-buy)" : "url(#arrow-craft)");
+
+        const node = g.append("g").selectAll("foreignObject").data(nodes).join("foreignObject")
+            .attr("width", 100).attr("height", 60)
+            .call(d3.drag()
+                .on("start", (e,d)=>{ if(!e.active)simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+                .on("drag", (e,d)=>{ d.fx=e.x; d.fy=e.y; })
+                .on("end", (e,d)=>{ if(!e.active)simulation.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+        node.append("xhtml:div")
+            .attr("class", "node-container")
+            .style("background", d => d.type === 'shop' ? '#222' : '#2c3e50')
+            .style("border-color", d => d.type === 'shop' ? '#f1c40f' : '#00c8ff')
+            .html(d => `<strong>${d.name}</strong>`)
+            .on("click", (e, d) => {
+                if(d.type !== 'shop') openModal(d.name);
+            });
+
+        simulation.on("tick", () => {
+            link.attr("d", d => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`);
+            node.attr("x", d => d.x - 50).attr("y", d => d.y - 30);
+        });
+    }
+
+    // ===============================================
+    // 4. CALCULATOR
+    // ===============================================
+    function updateCalcDropdown() {
+        const sel = document.getElementById("calc-item");
+        sel.innerHTML = "";
+        const items = new Set();
+        globalRecipes.forEach(r => { if(r.to && r.action !== 'STORE') items.add(r.to); });
+        
+        if(items.size === 0) sel.appendChild(new Option("No Craftables", ""));
+        else [...items].sort().forEach(i => sel.appendChild(new Option(i, i)));
+    }
+
+    function resolve(item, amount) {
+        let needs = {};
+        let steps = [];
+        
+        let recipes = globalRecipes.filter(r => r.to === item);
+        if(recipes.length === 0) {
+            needs[item] = (needs[item] || 0) + amount;
+            steps.push(`Acquire ${amount}x ${item} (Raw)`);
+            return {needs, steps};
+        }
+
+        let r = recipes[0];
+        let outQty = parseFloat(r.cout) || 1;
+        let batches = Math.ceil(amount / outQty);
+
+        if(r.action === 'STORE') {
+            let cost = (parseFloat(r.cost) || 0) * batches;
+            needs[`${r.currency}`] = (needs[`${r.currency}`]||0) + cost;
+            steps.push(`Buy ${amount}x ${item} from ${r.from} (${cost} ${r.currency})`);
+        } else {
+            let ingNames = r.from.split("+");
+            let ingQtys = (r.cin || "").split("+");
+            steps.push(`Craft ${batches} batches of ${item}`);
+            ingNames.forEach((ingName, idx) => {
+                let perBatch = parseFloat(ingQtys[idx]) || 1;
+                let sub = resolve(ingName.trim(), perBatch * batches);
+                for(let k in sub.needs) needs[k] = (needs[k]||0) + sub.needs[k];
+                sub.steps.forEach(s => steps.push(`<span style="color:#888;margin-left:10px">↳</span> ${s}`));
+            });
+        }
+        return {needs, steps};
+    }
+
+    function calculateAll() {
+        const item = document.getElementById("calc-item").value;
+        const amt = parseFloat(document.getElementById("calc-amount").value) || 1;
+        if(!item || item === "Loading...") return;
+
+        const res = resolve(item, amt);
+        let html = `<h3>Shopping List</h3><ul style="display:grid;grid-template-columns:1fr 1fr; gap:5px">`;
+        for(let [k,v] of Object.entries(res.needs)) html += `<li>${k}: <span style="color:var(--accent)">${v}</span></li>`;
+        html += `</ul><h3>Steps</h3><div style="line-height:1.6; font-size:0.9em; opacity:0.9">${res.steps.map(s=>`<div>${s}</div>`).join("")}</div>`;
+        document.getElementById("calc-results").innerHTML = html;
+    }
+
+    // Init
+    loadAllCSVs();
+
+</script>
+</body>
+</html>
