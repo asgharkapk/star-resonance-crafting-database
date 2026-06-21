@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Material Converter</title>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+body { font-family: Arial; background:#111; color:#eee; padding:20px; }
+input, button { padding:8px; margin:5px; }
+#results div { cursor:pointer; padding:5px; border-bottom:1px solid #333; }
+#results div:hover { background:#222; }
+
+table { width:100%; border-collapse:collapse; margin-top:15px; }
+td,th { border:1px solid #333; padding:6px; }
+
+pre { background:#1a1a1a; padding:10px; white-space:pre-wrap; }
+</style>
+</head>
+
+<body>
+
+<h2>Material Converter Calculator</h2>
+
+<input id="search" placeholder="Search material..." />
+<div id="results"></div>
+
+<br>
+<label>Target Amount:</label>
+<input id="amount" type="number" value="1" />
+
+<button onclick="calculate()">Calculate</button>
+
+<h3>Results</h3>
+<table>
+<thead>
+<tr>
+<th>Material</th>
+<th>Amount</th>
+</tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
+
+<h3>Steps</h3>
+<pre id="steps"></pre>
+
+<script>
+
+// ---------------- DATA ----------------
+let recipes = [];
+let materialSet = new Set();
+
+let recipeMap = {}; // to_id → list of recipes
+let nameMap = {};
+
+// ---------------- LOAD CSV ----------------
+Papa.parse("data.csv", {
+    download: true,
+    header: true,
+    complete: res => {
+        recipes = res.data.filter(r => r.from_id);
+
+        recipes.forEach(r => {
+            materialSet.add(r.from_id);
+            materialSet.add(r.to_id);
+
+            nameMap[r.from_id] = r.from_id;
+            nameMap[r.to_id] = r.to_id;
+
+            if (!recipeMap[r.to_id]) recipeMap[r.to_id] = [];
+            recipeMap[r.to_id].push(r);
+        });
+    }
+});
+
+// ---------------- SEARCH ----------------
+document.getElementById("search").addEventListener("input", e => {
+    const q = e.target.value.toLowerCase();
+    const box = document.getElementById("results");
+    box.innerHTML = "";
+
+    [...materialSet]
+        .filter(x => x.toLowerCase().includes(q))
+        .forEach(m => {
+            let div = document.createElement("div");
+            div.textContent = m;
+            div.onclick = () => select(m);
+            box.appendChild(div);
+        });
+});
+
+let selected = null;
+
+function select(m) {
+    selected = m;
+    document.getElementById("results").innerHTML = "Selected: " + m;
+}
+
+// ---------------- CALC CORE ----------------
+
+function calculate() {
+    if (!selected) return;
+
+    let amount = parseFloat(document.getElementById("amount").value);
+
+    let result = {};
+    let steps = [];
+
+    resolve(selected, amount, result, steps, 0);
+
+    render(result, steps);
+}
+
+// recursive resolver
+function resolve(id, amount, result, steps, depth) {
+
+    let indent = "  ".repeat(depth);
+
+    // no recipe → base material
+    if (!recipeMap[id]) {
+        result[id] = (result[id] || 0) + amount;
+        steps.push(`${indent}${amount.toFixed(2)} × ${id} (base)`);
+        return;
+    }
+
+    // choose first recipe (you can improve later with selection UI)
+    let recipes = recipeMap[id];
+
+    let r = recipes[0];
+
+    let fromQty = parseFloat(r.from_qty);
+    let toQty = parseFloat(r.to_qty);
+
+    let scale = amount / toQty;
+
+    steps.push(`${indent}${amount.toFixed(2)} × ${id} ← crafted`);
+
+    let inputs = parseInputs(r);
+
+    for (let inp of inputs) {
+        resolve(inp.id, inp.qty * scale, result, steps, depth + 1);
+    }
+}
+
+// supports multiple inputs if you extend later
+function parseInputs(r) {
+    return [{
+        id: r.from_id,
+        qty: parseFloat(r.from_qty)
+    }];
+}
+
+// ---------------- RENDER ----------------
+
+function render(result, steps) {
+
+    let table = document.getElementById("table");
+    table.innerHTML = "";
+
+    Object.entries(result).forEach(([id, qty]) => {
+        let tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${id}</td>
+            <td>${qty.toFixed(2)}</td>
+        `;
+
+        table.appendChild(tr);
+    });
+
+    document.getElementById("steps").textContent = steps.join("\n");
+}
+
+</script>
+
+</body>
+</html>
