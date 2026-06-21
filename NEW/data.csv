@@ -1,0 +1,26 @@
+from_qty,from_id,to_qty,to_id,cost,currency
+
+1,Charcoal,15,Burning Powder,20,F
+2,Charcoal,3,Fast Burning Powder,20,F
+2,Resin,15,Gem Wax,20,F
+28,Pine Timber,10,Charcoal,200,F
+28,Pine Timber,150,Burning Powder,200,F
+1,Exch,1,Charcoal,600,L
+1,HS,1,Charcoal,220,H
+1,Exch,1,Pine Timber,174,L
+1,HS,1,Pine Timber,58,H
+1,TS,1,Burning Powder,133,L
+
+1,Flax,3,Refined Yarn,0,F
+10,Refined Yarn,1,Refined Cotton,0,F
+1,Exch,1,Flax,246,L
+1,Exch,1,Refined Yarn,120,L
+1,Exch,1,Refined Cotton,1524,L
+1,HS,1,Flax,82,H
+1,HS,1,Refined Yarn,40,H
+1,HS,1,Refined Cotton,508,H
+
+7,Robust Plant Stems,1,Enriching Botanic Growth Powder,20,F
+7,Stress-Resistant Buds,1,Enriching Botanic Growth Powder,20,F
+5,Knotted Plant Stems,1,Refined Botanic Powder,20,F
+1,Buds,1,Refined Botanic Powder,20,F
