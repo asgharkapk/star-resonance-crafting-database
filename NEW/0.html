@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Material Converter Calculator</title>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    padding: 20px;
+}
+
+input {
+    width: 300px;
+    padding: 8px;
+    margin-bottom: 10px;
+}
+
+#results div {
+    padding: 5px;
+    cursor: pointer;
+    border-bottom: 1px solid #333;
+}
+
+#results div:hover {
+    background: #222;
+}
+
+table {
+    margin-top: 20px;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #333;
+    padding: 8px;
+}
+
+img {
+    width: 32px;
+    height: 32px;
+}
+pre {
+    background: #1a1a1a;
+    padding: 10px;
+    white-space: pre-wrap;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Material Converter Calculator</h2>
+
+<input id="search" placeholder="Search material..." />
+<div id="results"></div>
+
+<h3>Target Amount</h3>
+<input id="amount" type="number" value="1" />
+
+<button onclick="calculate()">Calculate</button>
+
+<h3>Result Table</h3>
+<table>
+<thead>
+<tr>
+<th>Material</th>
+<th>Amount</th>
+<th>Image</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+<h3>Breakdown Steps</h3>
+<pre id="steps"></pre>
+
+<script>
+
+let materials = [];
+let recipes = [];
+
+let materialMap = {};
+let recipeMap = {}; // output → recipe
+
+// -------------------- LOAD CSV --------------------
+
+function loadData() {
+    Papa.parse("materials.csv", {
+        download: true,
+        header: true,
+        complete: res => {
+            materials = res.data;
+            materials.forEach(m => materialMap[m.id] = m);
+        }
+    });
+
+    Papa.parse("recipes.csv", {
+        download: true,
+        header: true,
+        complete: res => {
+            recipes = res.data;
+
+            recipes.forEach(r => {
+                recipeMap[r.to_id] = r;
+            });
+        }
+    });
+}
+
+// -------------------- SEARCH --------------------
+
+document.getElementById("search").addEventListener("input", e => {
+    const q = e.target.value.toLowerCase();
+    const results = document.getElementById("results");
+    results.innerHTML = "";
+
+    materials
+        .filter(m => m.name.toLowerCase().includes(q))
+        .forEach(m => {
+            const div = document.createElement("div");
+            div.textContent = m.name;
+            div.onclick = () => selectMaterial(m.id);
+            results.appendChild(div);
+        });
+});
+
+let selectedMaterial = null;
+
+function selectMaterial(id) {
+    selectedMaterial = id;
+    document.getElementById("results").innerHTML =
+        "Selected: " + materialMap[id].name;
+}
+
+// -------------------- CORE CALCULATION --------------------
+
+function calculate() {
+    if (!selectedMaterial) return;
+
+    let amount = parseFloat(document.getElementById("amount").value);
+
+    let result = {};
+    let steps = [];
+
+    resolve(selectedMaterial, amount, result, steps);
+
+    render(result, steps);
+}
+
+// recursive resolver
+function resolve(id, amount, result, steps, depth = 0) {
+
+    let mat = materialMap[id];
+    let indent = "  ".repeat(depth);
+
+    // if no recipe → base material
+    if (!recipeMap[id]) {
+        result[id] = (result[id] || 0) + amount;
+        steps.push(`${indent}${amount}x ${mat.name} (base)`);
+        return;
+    }
+
+    let recipe = recipeMap[id];
+
+    let outputQty = parseFloat(recipe.to_qty);
+    let inputQty = parseFloat(recipe.from_qty);
+
+    let scale = amount / outputQty;
+
+    steps.push(`${indent}${amount}x ${mat.name} ← crafted using recipe`);
+
+    // input side
+    let inputs = parseInputs(recipe.from_id, inputQty);
+
+    inputs.forEach(inp => {
+        resolve(inp.id, inp.qty * scale, result, steps, depth + 1);
+    });
+}
+
+// supports multiple inputs like "A:10|B:5"
+function parseInputs(str, qtyBase) {
+    // format: A:10|B:5
+    return str.split("|").map(x => {
+        let [id, qty] = x.split(":");
+        return {
+            id: id,
+            qty: parseFloat(qty)
+        };
+    });
+}
+
+// -------------------- RENDER --------------------
+
+function render(result, steps) {
+    let tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    Object.keys(result).forEach(id => {
+        let m = materialMap[id];
+
+        let tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${m ? m.name : id}</td>
+            <td>${result[id].toFixed(2)}</td>
+            <td>${m?.image ? `<img src="${m.image}">` : ""}</td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById("steps").textContent = steps.join("\n");
+}
+
+// -------------------- INIT --------------------
+
+loadData();
+
+</script>
+
+</body>
+</html>
